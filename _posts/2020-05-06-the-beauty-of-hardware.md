@@ -71,7 +71,7 @@ Since the device that you use to read this post is not sounding like an electifi
 
 Each transistor has three pings, which are called the base, the collector and the emitter. Imagine that the collector and emitter are the ends of our old trusty switch. Then the base will controll wether the switch is open or closed. If small electrical current is applied to the base, then the switch closes and the current can flow between the emitter and the collector. Let's look at how the transistor operates using a diagram:
 
-{% maincolumn 'assets/img/transistor.png' '[Source](https://wccftech.com/worlds-smallest-transistor/)' %}
+{% maincolumn 'assets/img/transistor.png' %}
 
 Now, let's look at how we can implement {% m %} AND(x, y) {% em %} using transistors:
 
