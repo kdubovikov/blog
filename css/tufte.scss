@@ -221,6 +221,12 @@ figure, figure img.maincolumn { max-width: 55%;
          -webkit-margin-end: 0;
          margin-bottom: 3em; }
 
+figure img {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+
 figcaption { float: right;
              clear: right;
              margin-right: -48%;
@@ -342,6 +348,7 @@ label.margin-toggle:not(.sidenote-number) { display: none; }
 header > nav.group, body footer {
   width: 95%;
   padding-top: 2rem;
+  margin-left: 65%;
 }
 
 nav.group a.active:before{ content:"\0003c\000a0";} // escaped unicode for the carats and then a space on active menu links
@@ -522,76 +529,69 @@ hr.slender {
 /* --- Icomoon icon fonts CSS --*/
 @font-face {
   font-family: 'icomoon';
-  src:url('../fonts/icomoon.eot?rgwlb8');
-  src:url('../fonts/icomoon.eot?#iefixrgwlb8') format('embedded-opentype'),
-    url('../fonts/icomoon.woff?rgwlb8') format('woff'),
-    url('../fonts/icomoon.ttf?rgwlb8') format('truetype'),
-    url('../fonts/icomoon.svg?rgwlb8#icomoon') format('svg');
+  src:  url('../fonts/icomoon.eot?r4k24g');
+  src:  url('../onts/icomoon.eot?r4k24g#iefix') format('embedded-opentype'),
+    url('../fonts/icomoon.ttf?r4k24g') format('truetype'),
+    url('../fonts/icomoon.woff?r4k24g') format('woff'),
+    url('../fonts/icomoon.svg?r4k24g#icomoon') format('svg');
   font-weight: normal;
   font-style: normal;
+  font-display: block;
 }
 
 [class^="icon-"], [class*=" icon-"] {
-  font-family: 'icomoon';
+  /* use !important to prevent issues with browser extensions that change fonts */
+  font-family: 'icomoon' !important;
   speak: none;
   font-style: normal;
   font-weight: normal;
   font-variant: normal;
   text-transform: none;
   line-height: 1;
-  color: $contrast-color;
 
   /* Better Font Rendering =========== */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-.icon-pencil:before {
-  content: "\e600";
+.icon-pen:before {
+  content: "\e908";
 }
-.icon-film:before {
-  content: "\e60f";
+.icon-play:before {
+  content: "\e912";
+}
+.icon-envelop:before {
+  content: "\e945";
 }
 .icon-calendar:before {
-  content: "\e601";
+  content: "\e953";
 }
 .icon-link:before {
-  content: "\e602";
+  content: "\e9cb";
+}
+.icon-plus:before {
+  content: "\ea0a";
 }
 .icon-info:before {
-  content: "\e603";
+  content: "\ea0c";
 }
 .icon-cancel-circle:before {
-  content: "\e604";
+  content: "\ea0d";
 }
-.icon-checkmark-circle:before {
-  content: "\e605";
-}
-.icon-spam:before {
-  content: "\e606";
-}
-.icon-mail:before {
-  content: "\e607";
-}
-.icon-googleplus:before {
-  content: "\e608";
-}
-.icon-facebook:before {
-  content: "\e609";
+.icon-checkmark:before {
+  content: "\ea10";
 }
 .icon-twitter:before {
-  content: "\e60a";
+  content: "\ea96";
 }
-.icon-feed:before {
-  content: "\e60b";
-}
-.icon-flickr:before {
-  content: "\e60c";
+.icon-rss2:before {
+  content: "\ea9c";
 }
 .icon-github:before {
-  content: "\e60d";
+  content: "\eab0";
 }
-.icon-box-add:before {
-  content: "\e60e";
+.icon-linkedin:before {
+  content: "\eac9";
 }
+
 /*-- End of Icomoon icon font section --*/

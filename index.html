@@ -2,15 +2,30 @@
 layout: full-width
 title: blog
 # Note that this index page uses a full-width layout!
+order: 0
 ---
-
-  <h1 class="content-listing-header sans">Articles</h1>
   <ul class="content-listing ">
     {% for post in site.posts %}      
+        {% assign num_words = post.content | strip_html | number_of_words %}
+        {% assign minutes = num_words | divided_by: 200.0 %}
+        {% assign minutes_f = num_words | divided_by: 200.0 %}
+        {% assign minutes_i = num_words | divided_by: 200 %}
+        {% assign diff = minutes_f | minus: minutes_i %}
+        {% if diff >= 0.5 %}
+            {% assign minutes = minutes_i + 1 %}
+        {% else %}
+            {% assign minutes = minutes_i %}
+        {% endif %}
+        {% if minutes <= 1 %}
+            {% assign reading_time = '1' | append: ' minute' %}
+        {% else %}
+            {% assign reading_time = minutes | append: ' minutes' %}
+        {% endif %}
+
         <li class="listing">
           <hr class="slender">
           <a href="{{ post.url | prepend: site.baseurl }}"><h3 class="contrast">{{ post.title }}</h3></a>
-          <br><span class="smaller">{{ post.date | date: "%B %-d, %Y" }}</span>  <br/>
+          <br><span class="smaller">Reading time: {{reading_time}}</span>  <br/>
           <div>{{ post.excerpt }}</div> 
         </li>
     {% endfor %}
