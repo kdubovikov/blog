@@ -5,7 +5,7 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <title>blog</title>
+  <title>Categories</title>
   <meta name="description" content="My thoughts on everything :)">
 
   <!-- Google Fonts loaded here depending on setting in _data/options.yml true loads font, blank does not-->
@@ -21,12 +21,12 @@
   <link rel="stylesheet" type="text/css" href="/css/tufte.css">
   <!-- <link rel="stylesheet" type="text/css" href="/css/print.css" media="print"> -->
 
-  <link rel="canonical" href="/">
+  <link rel="canonical" href="/categories/">
 
   <link rel="alternate" type="application/rss+xml" title="Kirill Dubovikov" href="/feed.xml" />
 </head>
 
-  <body class="full-width">
+  <body>
     <!--- Header and nav template site-wide -->
 <header>
     <nav class="group">
@@ -44,44 +44,45 @@
   	
 		
 		    
-		      <a class="active" href="/" class="active">blog</a>
+		      <a href="/">blog</a>
 		    
 	    
   	
 		
 		    
-		      <a href="/categories/">Categories</a>
+		      <a class="active" href="/categories/" class="active">Categories</a>
 		    
 	    
   	
 	</nav>
 </header>
-    <article>
-        <ul class="content-listing ">
-          
-        
-        
-        
-        
-        
-        
-        
+    <article class="group">
+      <p class="subtitle"></p>
 
-        <li class="listing">
-          <hr class="slender">
-          <a href="/articles/hardware/the-beauty-of-hardware"><h3 class="contrast">The beauty of hardware</h3></a>
-          <br><span class="smaller">Reading time: 8 minutes</span>  <br/>
-          <div><p>My life is tied with software. I first got interested in it in year 2001, when I saw my father reading a C++ book. Since then, I learned and built and failed and learned again up to this day. Over those years, I’ve learned about different programming languages, peeked into the inner workings of operating systems, databases and compilers. I’ve tried to build simple bootloaders and operating systems in assembly using my old PC-iMac clone.</p>
 
-<figure><figcaption></figcaption><img src="/assets/img/eone.jpg" /></figure>
+<hr class="slender">
+<div id="archives">
 
-<p>Yet, somehow, I have always avoided getting into hardware. How does a CPU work? How RAM stores a single bit of memory? It was all black magic to me. Computers just worked. Maybe, your case is the same as mine. In this post I will provide a short intro into digital electronics and give you some references on how to advance your studies further.</p>
-</div> 
-        </li>
+  <div class="archive-group">
     
-  </ul>
+    <div id="#hardware"></div>
+    <p></p>
+
+    <h3 class="category-head">Posts about hardware</h3>
+    <a name="hardware"></a>
+    
+    <ul>
+    <article class="archive-item">
+      <li class="contrast"><a href="/articles/hardware/the-beauty-of-hardware">The beauty of hardware</a></li>
     </article>
-    <span class="print-footer">blog - Kirill Dubovikov</span>
+    </ul>
+    
+  </div>
+
+</div>
+
+    </article>
+    <span class="print-footer">Categories - Kirill Dubovikov</span>
     <footer>
   <hr class="slender">
   <ul class="footer-links">
