@@ -4,7 +4,7 @@ subtitle: Content-centric blogging
 author: Kirill Dubovikov
 simple_search: http://google.com/search
 description: My thoughts on everything :)
-name: Blog
+name: Kirill's blog
 markdown: kramdown
 markdown_ext: "markdown,mkdown,mkdn,mkd,md"
 permalink: /articles/:categories/:title
