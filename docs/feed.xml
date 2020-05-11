@@ -5,8 +5,8 @@
     <description>My thoughts on everything :)</description>
     <link>/</link>
     <atom:link href="/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Mon, 11 May 2020 01:05:36 -0400</pubDate>
-    <lastBuildDate>Mon, 11 May 2020 01:05:36 -0400</lastBuildDate>
+    <pubDate>Mon, 11 May 2020 01:21:27 -0400</pubDate>
+    <lastBuildDate>Mon, 11 May 2020 01:21:27 -0400</lastBuildDate>
     <generator>Jekyll v4.0.0</generator>
     
       <item>
@@ -91,7 +91,7 @@ The electrical signals are inherently analog. Electrons, that move through condu
 
 &lt;h2 id=&quot;wrapping-up&quot;&gt;Wrapping up&lt;/h2&gt;
 
-&lt;p&gt;Now, you’ve seen that . That’s all for a quick intro to digital electronics. If you want to dig in, continue with the following resources:&lt;/p&gt;
+&lt;p&gt;Now, you’ve seen that digital electronics is a lot like programming: you have a set of basic abstractions that you can use to build more complex things. Like software modules, hardware abstractions are packaged into Integrated Circuits, which you can use to build devices with more complex behaviour. If you want to dig in, continue with the following resources:&lt;/p&gt;
 
 &lt;ul&gt;
   &lt;li&gt;&lt;a href=&quot;https://www.youtube.com/watch?v=HyznrdDSSGM&amp;amp;list=PLowKtXNTBypGqImE405J2565dvjafglHU&quot;&gt;Building a 8-bit breadboard computer&lt;/a&gt;&lt;/li&gt;

@@ -81,7 +81,7 @@ All action happens at the atomical level. This means that transistors can be sma
 
 ## Wrapping up
 
-Now, you've seen that . That's all for a quick intro to digital electronics. If you want to dig in, continue with the following resources:
+Now, you've seen that digital electronics is a lot like programming: you have a set of basic abstractions that you can use to build more complex things. Like software modules, hardware abstractions are packaged into Integrated Circuits, which you can use to build devices with more complex behaviour. If you want to dig in, continue with the following resources:
 
 * [Building a 8-bit breadboard computer](https://www.youtube.com/watch?v=HyznrdDSSGM&list=PLowKtXNTBypGqImE405J2565dvjafglHU) 
 * [CODE Book](https://www.amazon.com/Code-Language-Computer-Hardware-Software/dp/0735611319) 

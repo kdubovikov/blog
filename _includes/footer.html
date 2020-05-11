@@ -6,6 +6,9 @@
         <a class="social-link" href="{{ entry.link }}">{{ entry.name }}</a>
       </li>
     {% endfor %}  
+    <li>
+      <a class="social-link" href="/feed.xml">RSS</a>
+    </li>
   </ul>
 <div class="credits">
 <span>&copy; {{ site.time | date: '%Y' }} &nbsp;&nbsp;{{site.author | upcase }}</span></br> <br>
