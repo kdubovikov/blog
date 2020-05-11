@@ -1,8 +1,13 @@
+twitter_username: kdubovikov
+links:
 - link: //www.twitter.com/kdubovikov 
   icon: icon-twitter
+  name: Twitter
 - link: //github.com/kdubovikov 
   icon: icon-github
+  name: GitHub
 - link: //www.flickr.com/photos/FlickrUserID 
   icon: icon-linkedin
+  name: LinkedIn
 # - link: /feed 
   # icon: icon-pen

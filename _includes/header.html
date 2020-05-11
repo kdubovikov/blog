@@ -11,5 +11,8 @@
 		    {% endif %}
 	    {% endunless %}
   	{% endfor %}
+    {% for entry in site.data.social.links %}
+        <a class="social-link" href="{{ entry.link }}"><span class="{{ entry.icon }}"/></a>
+    {% endfor %}  
 	</nav>
 </header>

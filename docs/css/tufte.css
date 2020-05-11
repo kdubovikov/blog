@@ -292,7 +292,7 @@ label.margin-toggle:not(.sidenote-number) { display: none; }
 
 header > nav.group, body footer { width: 95%; padding-top: 2rem; }
 
-header > nav { margin-left: 65%; }
+header > nav { margin-left: 55%; }
 
 nav.group a.active:before { content: "\0003c\000a0"; }
 
@@ -312,7 +312,7 @@ ul.footer-links li { display: inline; padding: 0.5rem 0.25rem; }
 
 .credits a { color: #a00000; }
 
-body.full-width, .content-listing, ul.content-listing li.listing { width: 90%; margin-left: auto; margin-right: auto; padding: 0% 5%; }
+body.full-width, .content-listing, ul.content-listing li.listing { width: 90%; margin-left: auto; margin-right: auto; padding: 3% 5%; }
 
 .full-width article p { width: 90%; }
 
@@ -348,6 +348,14 @@ hr.slender { border: 0; height: 1px; margin-top: 1.4rem; margin-bottom: 1.4rem; 
   article h2, article h2 h3, article h3, article h3 h4, article h4, article h4 h5 { page-break-after: avoid; }
   body header, body footer { display: none; } }
 
+.share-page { padding: 8px 15px; border-radius: 5px; }
+
+.share-page a { font-size: 1.5em; margin-left: 10px; }
+
+.share-page a:hover { border-bottom: 1px dashed #a00000; }
+
+.social-link { font-size: 1.0rem; }
+
 /* --- Icomoon icon fonts CSS --*/
 @font-face { font-family: 'icomoon'; src: url("../fonts/icomoon.eot?r4k24g"); src: url("../onts/icomoon.eot?r4k24g#iefix") format("embedded-opentype"), url("../fonts/icomoon.ttf?r4k24g") format("truetype"), url("../fonts/icomoon.woff?r4k24g") format("woff"), url("../fonts/icomoon.svg?r4k24g#icomoon") format("svg"); font-weight: normal; font-style: normal; font-display: block; }
 
@@ -371,11 +379,15 @@ hr.slender { border: 0; height: 1px; margin-top: 1.4rem; margin-bottom: 1.4rem; 
 
 .icon-checkmark:before { content: "\ea10"; }
 
+.icon-facebook2:before { content: "\ea91"; }
+
 .icon-twitter:before { content: "\ea96"; }
 
 .icon-rss2:before { content: "\ea9c"; }
 
 .icon-github:before { content: "\eab0"; }
+
+.icon-reddit:before { content: "\eac6"; }
 
 .icon-linkedin:before { content: "\eac9"; }
 

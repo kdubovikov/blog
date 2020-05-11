@@ -6,3 +6,14 @@ layout: default
 
 {{ content }}
 
+<div class="share-page">
+    <div class="wow bounce">
+    <p>
+    <b class="contrast">Share this post</b><br/>
+    </p>
+    </div>
+    <a href="https://twitter.com/intent/tweet?text={{ page.title }}&url={{ site.url }}{{ page.url }}&via={{ site.data.social.twitter_username }}&related={{ site.data.social.twitter_username }}" rel="nofollow" target="_blank" title="Share on Twitter"><span class="icon-twitter"></span></a>
+    <a href="https://facebook.com/sharer.php?u={{ site.url }}{{ page.url }}" rel="nofollow" target="_blank" title="Share on Facebook"><span class="icon-facebook2"></span></a>
+    <a href="http://www.linkedin.com/shareArticle?mini=true&url=<URL>&title={{ page.title }}&summary={{ page.title }}&source={{ site.url }}{{ page.url }}" rel="nofollow" target="_blank" title="Share on LinkedIn+"><span class="icon-linkedin"></span></a>
+    <a href="http://www.reddit.com/submit?url={{ site.url }}{{ page.url }}&title={{ page.title }}" rel="nofollow" target="_blank" title="Share on Reddit"><span class="icon-reddit"></span></a>
+</div>

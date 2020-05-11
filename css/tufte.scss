@@ -351,7 +351,7 @@ header > nav.group, body footer {
 }
 
 header > nav {
-  margin-left: 65%;
+  margin-left: 55%;
 }
 
 nav.group a.active:before{ content:"\0003c\000a0";} // escaped unicode for the carats and then a space on active menu links
@@ -408,7 +408,7 @@ ul.footer-links li{
 body.full-width, .content-listing, ul.content-listing li.listing{ width: 90%;
        margin-left: auto;
        margin-right: auto;
-       padding: 0% 5%;
+       padding: 3% 5%;
 
 }
 .full-width article p{
@@ -528,6 +528,24 @@ hr.slender {
     }
 }
 
+.share-page {
+    padding: 8px 15px;
+    border-radius: 5px;
+    // margin-left: 4%;
+
+    a {
+        font-size: 1.5em;
+        margin-left: 10px;
+
+        &:hover {
+            border-bottom: 1px dashed $contrast-color;
+        }
+    }
+}
+
+.social-link {
+  font-size: 1.0rem;
+}
 
 /* --- Icomoon icon fonts CSS --*/
 @font-face {
@@ -584,6 +602,9 @@ hr.slender {
 .icon-checkmark:before {
   content: "\ea10";
 }
+.icon-facebook2:before {
+  content: "\ea91";
+}
 .icon-twitter:before {
   content: "\ea96";
 }
@@ -593,8 +614,12 @@ hr.slender {
 .icon-github:before {
   content: "\eab0";
 }
+.icon-reddit:before {
+  content: "\eac6";
+}
 .icon-linkedin:before {
   content: "\eac9";
 }
+
 
 /*-- End of Icomoon icon font section --*/
