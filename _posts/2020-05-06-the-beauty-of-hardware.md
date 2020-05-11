@@ -57,7 +57,7 @@ You can check that the lightbulb will be on when either {% m %}x{% em %} OR {% m
 
 As you can see, any logical function can be represented using switches. This means, that we can build anything that manipulates numbers, in the physical world! Of course, building a sophisticated circuit such as added using regular switches is complicated. Also, our final device will be huge and hard to maintain. Consider how tiresome it could be to search for a broken switch. Another issue is that someone should manually put those switches on and off. Thankfully, a man named Samuel Thomas von Sömmerring designed a switch that can be controlled using electricity: a [relay](https://en.wikipedia.org/wiki/Relay).
 
-{% maincolumn 'assets/img/relay.gif' '[Source](https://instrumentationtools.com/wp-content/uploads/2017/07/instrumentationtools.com_relay-animation.gif)' %}
+{% maincolumn 'assets/img/relay.gif' '<a href="https://instrumentationtools.com/wp-content/uploads/2017/07/instrumentationtools.com_relay-animation.gif">Source</a>' %}
 
 Relays are switches that are turned on and off using electromagnets. Originally, they were invented for entirely different reasons. Relays were used to repeat an electrical signal in telegraph lines so that it could be transferred to large distances without using thicker wires {% sidenote 6 'Electrical current needs thicker wires if you want it to travel over long distances. The longer the wire is, the higher its resistance will be. Thus, if you are sending a current over large distances, you may experience a voltage drop at the other end of the wire. Making the wire thicker will the lower is the resistance, which in turn will compensate the voltage drop.'  %}.
 
@@ -67,7 +67,7 @@ Relays are were a breakthrough, but they had some severe issures: they are costl
 
 Since the device that you use to read this post is not sounding like an electrified drummer, we can deduce that something had replaced relays during technological evolution. The thing is called a transistor. Transistor has an arguably fancier name, but it's functioning almost the same as a relay. The major change is that there is no physical switch inside anymore. 
 
-{% maincolumn 'assets/img/transistor-photo.jpg' '[Source](https://wccftech.com/worlds-smallest-transistor/)' %}
+{% maincolumn 'assets/img/transistor-photo.jpg' '<a href="https://wccftech.com/worlds-smallest-transistor/">Source</a>' %}
 
 Each transistor has three pings, which are called the base, the collector, and the emitter. Imagine that the collector and emitter are the ends of our old trusty switch. Then the base will control whether the switch is open or closed. If a small electrical current is applied to the base, then the switch closes and the current can flow between the emitter and the collector. Let's look at how the transistor operates using a diagram:
 
