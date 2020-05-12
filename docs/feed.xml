@@ -5,13 +5,13 @@
     <description>My thoughts on everything :)</description>
     <link>/</link>
     <atom:link href="/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Mon, 11 May 2020 01:33:35 -0400</pubDate>
-    <lastBuildDate>Mon, 11 May 2020 01:33:35 -0400</lastBuildDate>
+    <pubDate>Tue, 12 May 2020 02:56:23 -0400</pubDate>
+    <lastBuildDate>Tue, 12 May 2020 02:56:23 -0400</lastBuildDate>
     <generator>Jekyll v4.0.0</generator>
     
       <item>
         <title>The beauty of hardware</title>
-        <description>&lt;p&gt;My life is tied to software. I first got interested in it in the year 2001, when I saw my father reading a C++ book. Since then, I learned and built and failed and learned again up to this day. Over those years, I’ve learned about different programming languages, peeked into the inner workings of operating systems, databases, and compilers. I’ve tried to build simple bootloaders and operating systems in assembly using my old PC-iMac clone.&lt;/p&gt;
+        <description>&lt;p&gt;My life is tied to software. I first got interested in it in the year 2001, when I saw my father reading a C++ book. Since then, I learned and built and failed and learned again up to this day. Over those years, I’ve learned about different programming languages, peeked into the inner workings of operating systems, databases, and compilers. Back in the old days, I have tried to build simple bootloaders and operating systems in assembly using my old PC-iMac clone.&lt;/p&gt;
 
 &lt;figure&gt;&lt;figcaption&gt;&lt;/figcaption&gt;&lt;img src=&quot;/assets/img/eone.jpg&quot; /&gt;&lt;/figure&gt;
 
@@ -26,8 +26,7 @@ The concepts of abstraction and encapsulation are used in hardware much like the
 
 &lt;h2 id=&quot;what-is-digital-electronics&quot;&gt;What is digital electronics&lt;/h2&gt;
 
-&lt;p&gt;&lt;strong&gt;TODO describe how schematic connect to function and IC connect to packages in software and PCBs to systems&lt;/strong&gt;
-The electrical signals are inherently analog. Electrons, that move through conductors create an electrical current that we measure using different quantities such as Amperage, Voltage, and Resistance. So, how it comes that we can leverage the movement of electrons to create Turing-complete computing devices? To understand this, we first need to dive into mathematical logic.&lt;/p&gt;
+&lt;p&gt;The electrical signals are inherently analog. Electrons, that move through conductors create an electrical current that we measure using different quantities such as Amperage, Voltage, and Resistance. So, how it comes that we can leverage the movement of electrons to create Turing-complete computing devices? To understand this, we first need to dive into mathematical logic.&lt;/p&gt;
 
 &lt;p&gt;Mathematical logic formalizes logical reasoning into mathematical objects, that we can use to prove theorems. The subset of this field called Boolean algebra is of particular interest to us. Boolean algebra defines a set of operations on Boolean variables. Each Boolean variable can hold two possible values: True, or False. Those are also frequently represented by  0 and 1. The basic operations of Boolean algebra are &lt;span&gt;​&lt;script type=&quot;math/tex&quot;&gt;AND(x, y)&lt;/script&gt;&lt;/span&gt; or &lt;span&gt;​&lt;script type=&quot;math/tex&quot;&gt;x \wedge y&lt;/script&gt;&lt;/span&gt;, &lt;span&gt;​&lt;script type=&quot;math/tex&quot;&gt;OR(x, y)&lt;/script&gt;&lt;/span&gt; or &lt;span&gt;​&lt;script type=&quot;math/tex&quot;&gt;x \vee y&lt;/script&gt;&lt;/span&gt; and &lt;span&gt;​&lt;script type=&quot;math/tex&quot;&gt;NOT(x)&lt;/script&gt;&lt;/span&gt; or &lt;span&gt;​&lt;script type=&quot;math/tex&quot;&gt;\neg x&lt;/script&gt;&lt;/span&gt; &lt;label for=&quot;4&quot; class=&quot;margin-toggle sidenote-number&quot;&gt;&lt;/label&gt;&lt;input type=&quot;checkbox&quot; id=&quot;4&quot; class=&quot;margin-toggle&quot; /&gt;&lt;span class=&quot;sidenote&quot;&gt;If you were able to read that sentence, you already have a good idea of how these basic operations work. &lt;/span&gt;.&lt;/p&gt;
 

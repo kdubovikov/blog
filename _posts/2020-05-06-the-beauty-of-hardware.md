@@ -5,7 +5,7 @@ date:   2020-04-28 00:00:00
 categories: hardware
 ---
 
-My life is tied to software. I first got interested in it in the year 2001, when I saw my father reading a C++ book. Since then, I learned and built and failed and learned again up to this day. Over those years, I've learned about different programming languages, peeked into the inner workings of operating systems, databases, and compilers. I've tried to build simple bootloaders and operating systems in assembly using my old PC-iMac clone.
+My life is tied to software. I first got interested in it in the year 2001, when I saw my father reading a C++ book. Since then, I learned and built and failed and learned again up to this day. Over those years, I've learned about different programming languages, peeked into the inner workings of operating systems, databases, and compilers. Back in the old days, I have tried to build simple bootloaders and operating systems in assembly using my old PC-iMac clone.
 
 {% maincolumn 'assets/img/eone.jpg' %}
 
@@ -20,7 +20,6 @@ The concepts of abstraction and encapsulation are used in hardware much like the
 
 ## What is digital electronics
 
-**TODO describe how schematic connect to function and IC connect to packages in software and PCBs to systems**
 The electrical signals are inherently analog. Electrons, that move through conductors create an electrical current that we measure using different quantities such as Amperage, Voltage, and Resistance. So, how it comes that we can leverage the movement of electrons to create Turing-complete computing devices? To understand this, we first need to dive into mathematical logic.
 
 Mathematical logic formalizes logical reasoning into mathematical objects, that we can use to prove theorems. The subset of this field called Boolean algebra is of particular interest to us. Boolean algebra defines a set of operations on Boolean variables. Each Boolean variable can hold two possible values: True, or False. Those are also frequently represented by  0 and 1. The basic operations of Boolean algebra are {% m %}AND(x, y){% em %} or {% m %}x \wedge y{% em %}, {% m %}OR(x, y){% em %} or {% m %}x \vee y{% em %} and {% m %}NOT(x){% em %} or {% m %}\neg x{% em %} {% sidenote 4 'If you were able to read that sentence, you already have a good idea of how these basic operations work.' %}.
