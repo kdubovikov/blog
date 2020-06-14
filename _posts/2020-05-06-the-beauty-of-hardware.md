@@ -7,8 +7,6 @@ categories: hardware
 
 My life is tied to software. I first got interested in it in the year 2001, when I saw my father reading a C++ book. Since then, I learned and built and failed and learned again up to this day. Over those years, I've learned about different programming languages, peeked into the inner workings of operating systems, databases, and compilers. Back in the old days, I have tried to build simple bootloaders and operating systems in assembly using my old PC-iMac clone.
 
-{% maincolumn 'assets/img/eone.jpg' %}
-
 Yet, somehow, I have always avoided getting into hardware. How does a CPU work? How RAM stores a single bit of memory? It was all black magic to me. Computers just worked. Maybe, your case is the same as mine. In this post, I will provide a short intro to digital electronics and give you some references on how to advance your studies further. <!--more--> 
 
 During my first attempt to learn electronics, I knew some basics about the CPU architecture and could assemble a desktop computer to write my software, and that was it. I've tried to get into hardware during university years. I had no access to simple to use development boards like Arduino at the time, so my DIY microcontroller LED blinker was brick-walled by the necessity to learn how to solder the dev board myself.
@@ -62,7 +60,7 @@ Relays are switches that are turned on and off using electromagnets. Originally,
 
 Relays are were a breakthrough, but they had some severe issures: they are costly, large, and they break often. Computers that used relays were big and noisy. If you want to hear some satisfactory clicking, play a video below:
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/k1hJoalcK68?start=69" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen style="display: block; margin: 0 auto;"></iframe>
+<iframe width="560" height="315" src="https://www.youtube.com/embed/k1hJoalcK68?start=69" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen style="margin: 3% 5%;"></iframe>
 
 Since the device that you use to read this post is not sounding like an electrified drummer, we can deduce that something had replaced relays during technological evolution. The thing is called a transistor. Transistor has an arguably fancier name, but it's functioning almost the same as a relay. The major change is that there is no physical switch inside anymore. 
 

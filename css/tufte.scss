@@ -41,9 +41,19 @@ html{
 
   }
 
-@media screen and (min-width: 800px){ html{ font-size: 12px;} }
+@media screen and (min-width: 800px){ 
+  html { font-size: 12px;} 
+}
 
-@media screen and (min-width: 900px){ html{ font-size: 13px;} }
+@media screen and (min-width: 900px){ 
+  html { font-size: 13px;} 
+}
+
+@media (max-width: 760px) {
+  .sidenote, .marginnote {
+    display: none;
+  }
+}
 
 @media screen and (min-width: 1000px){ html{ font-size: 14px;} }
 
@@ -90,7 +100,7 @@ body { width: 87.5%;
 // added rational line height and margins ala http://webtypography.net/intro/
 
 h1 { font-weight: 400;
-     margin-top: 1.568rem;
+     margin-top: 2.5rem;
      margin-bottom: 1.568rem;
      font-size: 2.5rem;
      line-height: 0.784; }
@@ -98,7 +108,8 @@ h1 { font-weight: 400;
 h2 { font-style: italic;
      font-weight: 400;
      margin-top: 1.866666666666667rem;
-     margin-bottom: 0;
+     margin-top: 2.1rem;
+    margin-bottom: 1.4rem;
      font-size: 2.1rem;
      line-height: 0.933333333333333; }
 
@@ -346,12 +357,12 @@ label.margin-toggle:not(.sidenote-number) { display: none; }
 //Nav and Footer styling area
 
 header > nav.group, body footer {
-  width: 95%;
+  width: 100%;
   padding-top: 2rem;
 }
 
 header > nav {
-  margin-left: 55%;
+  margin-left: auto;
 }
 
 nav.group a.active:before{ content:"\0003c\000a0";} // escaped unicode for the carats and then a space on active menu links
@@ -365,7 +376,7 @@ header > nav  a{
   color: $contrast-color;
   padding-top: 1.5rem;
   text-decoration: none;
-  display: inline-block;
+  // display: inline-block;
   float: left;
   margin-top: 0;
   margin-bottom: 0;
@@ -373,6 +384,12 @@ header > nav  a{
   //margin-left: 1rem;
   vertical-align: baseline;
 }
+
+.head-social-links {
+  float: right;
+  display: inline-block;
+}
+
 header > nav a img{
   height: 5rem;
   position: relative;
@@ -527,6 +544,11 @@ hr.slender {
       display:none;
     }
 }
+
+.mermaid svg {
+  max-width: 80%;
+}
+
 
 .share-page {
     padding: 8px 15px;

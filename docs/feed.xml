@@ -5,15 +5,141 @@
     <description>My thoughts on everything :)</description>
     <link>/</link>
     <atom:link href="/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Tue, 12 May 2020 02:56:23 -0400</pubDate>
-    <lastBuildDate>Tue, 12 May 2020 02:56:23 -0400</lastBuildDate>
+    <pubDate>Sun, 14 Jun 2020 00:15:19 -0400</pubDate>
+    <lastBuildDate>Sun, 14 Jun 2020 00:15:19 -0400</lastBuildDate>
     <generator>Jekyll v4.0.0</generator>
+    
+      <item>
+        <title>Build yourself a weather station. Part I</title>
+        <description>&lt;figure class=&quot;fullwidth&quot;&gt;&lt;img src=&quot;/assets/img/esp32-weather-station/post-1/weather-dashboard.gif&quot; /&gt;&lt;figcaption&gt;&lt;/figcaption&gt;&lt;/figure&gt;
+
+&lt;h1 id=&quot;intro&quot;&gt;Intro&lt;/h1&gt;
+
+&lt;p&gt;I live pretty far away from the office, so my commute can take from 2.5 to 4 hours a day 😱. That includes a lot of time walking. I lost the count of times when I forgot to check if there was rain when going out from home. Or, even worse, the rain came in when I was midway to the train station. As a plus, the Weather app on my iPhone is not very good at making accurate forecasts. It can easily convince me that there is sunny outside when a sneaky rain starts to drop.&lt;/p&gt;
+
+&lt;p&gt;A couple of months ago I started diving into the electronics, microcontrollers, and PCBs, so a side-project idea naturally came up to a surface. I’ll create a simple weather station that will check humidity and temperature outside every morning and notify me if I need to take an umbrella or warm clothes. This is a fun and easy IoT project from the hardware perspective, so I decided to give it a try.&lt;/p&gt;
+
+&lt;p&gt;In this series of posts, we will cover how to build an IoT weather station powered up by a web dashboard and Telegram bot. We will start from the birds-eye view first and cover the architecture of what we are going to make.&lt;/p&gt;
+
+&lt;h1 id=&quot;architecture&quot;&gt;Architecture&lt;/h1&gt;
+
+&lt;div class=&quot;mermaid&quot;&gt;
+graph LR
+  D(fa:fa-microchip IoT Device) --&amp;gt; |weather measurements| B(fa:fa-gears Backend)
+  B --&amp;gt; DB(fa:fa-database Weather DB)
+  B --&amp;gt; TG(fa:fa-telegram Telegram Bot)
+  B --&amp;gt; API(fa:fa-gear REST API)
+  API --&amp;gt; F(fa:fa-line-chart Frontend Dashboard)
+
+classDef cls fill:#D7CDCC,stroke:#59656F,color:#080708;
+class D,B,DB,TG,API,F cls;
+&lt;/div&gt;
+
+&lt;p&gt;This is the general flow of information in the system. In this post, we will go through building each component:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;IoT Device&lt;/strong&gt; will periodically measure weather information and transfer it to the &lt;strong&gt;Backend&lt;/strong&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Backend&lt;/strong&gt; will store all sensor readings in a &lt;strong&gt;Weather Database&lt;/strong&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Telegram Bot&lt;/strong&gt; will be used as a notification service that multiple users can subscribe to and receive new weather information&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;REST API&lt;/strong&gt; and &lt;strong&gt;Frontend Dashboard&lt;/strong&gt; are used to present information from the &lt;strong&gt;Weather Database&lt;/strong&gt; in an online dashboard&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;choosing-the-technology-stack&quot;&gt;Choosing the technology stack&lt;/h2&gt;
+
+&lt;p&gt;The first thing we need to decide before diving into coding is what protocol to use for communication between our IoT device and Backend. I thought that I might want to place stations not only at my home, but also at our country house, so we’ll need to be able to publish messages from several devices to a single endpoint. All messages can be processed asynchronously, and our edge devices do not need to get any kind of response from the backend.&lt;/p&gt;
+
+&lt;p&gt;In this situation, the most suitable communication pattern would be some kind of publish-subscribe message passing protocol. In the IoT world, one of the most popular options for this is MQTT. Many devices support it, and there are good and simple to use open-source message brokers such as &lt;a href=&quot;https://mosquitto.org/&quot;&gt;Eclipse Mosquitto&lt;/a&gt;, which we will use in this project.&lt;/p&gt;
+
+&lt;p&gt;As for the Backend component, I have decided to use Rust. I could go over all the benefits of this language, but honestly, the primary reason is that I am learning the language and want to have more practice with it 😊.&lt;/p&gt;
+
+&lt;h1 id=&quot;hardware-setup&quot;&gt;Hardware setup&lt;/h1&gt;
+
+&lt;p&gt;First what we will build will be the weather station itself. Despite the popularity of Arduino I have decided to base the project on the &lt;a href=&quot;https://www.espressif.com/en/products/socs/esp32/overview&quot;&gt;ESP32&lt;/a&gt; chip. First, this is a much cheaper option. The development board will cost you less than $4. Second, it packs quite a punch compared to its competitors:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;TCP/IP protocol stack support&lt;/li&gt;
+  &lt;li&gt;MQTT support&lt;/li&gt;
+  &lt;li&gt;FreeRTOS&lt;label for=&quot;1&quot; class=&quot;margin-toggle sidenote-number&quot;&gt;&lt;/label&gt;&lt;input type=&quot;checkbox&quot; id=&quot;1&quot; class=&quot;margin-toggle&quot; /&gt;&lt;span class=&quot;sidenote&quot;&gt;&lt;a href=&quot;https://freertos.org/&quot;&gt;Free Real-Time Operating System&lt;/a&gt; contains useful implementations of multitasking primitives like asynchronous tasks, queues, and events &lt;/span&gt;&lt;/li&gt;
+  &lt;li&gt;Onboard Bluetooth and WiFi. No need to attach or solder extra modules&lt;/li&gt;
+  &lt;li&gt;Non-volatile memory storage&lt;label for=&quot;2&quot; class=&quot;margin-toggle sidenote-number&quot;&gt;&lt;/label&gt;&lt;input type=&quot;checkbox&quot; id=&quot;2&quot; class=&quot;margin-toggle&quot; /&gt;&lt;span class=&quot;sidenote&quot;&gt;NVM is like a small hard drive on your chip that allows you to store information when the board is powered off &lt;/span&gt;&lt;/li&gt;
+  &lt;li&gt;2 core CPU&lt;/li&gt;
+  &lt;li&gt;Low power consumption and deep-sleep modes that allow to power the chip using rechargeable batteries&lt;/li&gt;
+  &lt;li&gt;And many more useful things, like mesh-networking that allows you to put many devices into a mesh network that propagates messages between devices without access to the WiFi Access Point&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Another important part is the sensor that will measure the temperature. I have decided to use the popular BME280 sensor. It is small, cheap, and accurate. As a bonus, it measures not only temperature but also pressure and humidity 💪🏻.&lt;/p&gt;
+
+&lt;h2 id=&quot;bill-of-materials&quot;&gt;Bill of materials&lt;/h2&gt;
+
+&lt;p&gt;To build this project you will need:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;
+    &lt;p&gt;A ESP32 development board. I used &lt;a href=&quot;https://docs.espressif.com/projects/esp-idf/en/latest/esp32/hw-reference/modules-and-boards.html#esp32-devkitc-v4&quot;&gt;ESP32 WROOM devkit&lt;/a&gt;&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://aliexpress.ru/wholesale?catId=0&amp;amp;initiative_id=SB_20200531195228&amp;amp;SearchText=bme280&quot;&gt;BME 280 sensor&lt;/a&gt;. I strongly recommend using a breakout board since the sensor itself is very small&lt;label for=&quot;3&quot; class=&quot;margin-toggle sidenote-number&quot;&gt;&lt;/label&gt;&lt;input type=&quot;checkbox&quot; id=&quot;3&quot; class=&quot;margin-toggle&quot; /&gt;&lt;span class=&quot;sidenote&quot;&gt;If you will order a Chinese breakout board for the sensor you might need to solder pins to the board. It isn’t  hard, but make sure that you have necessary soldering equipment at hand. If you do not know how to solder, refer to the multitude  of guides and videos over the internet. For example, &lt;a href=&quot;https://www.makerspaces.com/how-to-solder/&quot;&gt;this one&lt;/a&gt; &lt;/span&gt;. It can use widely supported SPI and I2C protocols for communication with other PCBs&lt;/li&gt;
+  &lt;li&gt;3.3V or 5V micro USB power source for the ESP32 board. I use a simple power bank that you regularly use to charge your phone&lt;label for=&quot;4&quot; class=&quot;margin-toggle sidenote-number&quot;&gt;&lt;/label&gt;&lt;input type=&quot;checkbox&quot; id=&quot;4&quot; class=&quot;margin-toggle&quot; /&gt;&lt;span class=&quot;sidenote&quot;&gt;Another option is to use a power cell. It is a slightly more complicated setup, which I will cover in another post
+ &lt;/span&gt;&lt;/li&gt;
+  &lt;li&gt;A set of jumping wires to connect the sensor to the devboard&lt;/li&gt;
+  &lt;li&gt;A computer with a free USB port that you can use for coding and flashing&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;wiring-everything-together&quot;&gt;Wiring everything together&lt;/h2&gt;
+
+&lt;figure&gt;&lt;figcaption&gt;&lt;/figcaption&gt;&lt;img src=&quot;/assets/img/esp32-weather-station/post-1/schematics_bb.png&quot; /&gt;&lt;/figure&gt;
+
+&lt;p&gt;The wiring is not complicated, you will need to connect the BME280 sensor to the board and power it up. You do not have to wire up a power source since the dev board can be powered via micro the USB port. You can simply connect it to your PC, phone charger, or a power bank.&lt;/p&gt;
+
+&lt;p&gt;The next part that’s still in the mist is how the sensor communicates with our ESP32 board. Like software that has a TCP/IP or UDP stack for inter-device communication, hardware has a set of commonly used protocols for data transfer. We will use the I2C (Inter-Integrated Circuit) protocol for communications since it means fewer wires and leads to less complicated setup. I2C is meant for data transfer between multiple devices that are closely placed, which fits our case perfectly&lt;label for=&quot;5&quot; class=&quot;margin-toggle sidenote-number&quot;&gt;&lt;/label&gt;&lt;input type=&quot;checkbox&quot; id=&quot;5&quot; class=&quot;margin-toggle&quot; /&gt;&lt;span class=&quot;sidenote&quot;&gt;Another option we have is to use &lt;a href=&quot;https://en.wikipedia.org/wiki/Serial_Peripheral_Interface&quot;&gt;SPI&lt;/a&gt; (Serial Peripheral Interface), but it requires more wires, so we will go with the more economic option to save pins on our ESP32 board &lt;/span&gt;.&lt;/p&gt;
+
+&lt;p&gt;You can see SDA (red) and SCL (yellow) lines that are connected to BME280 on the schematics. Those will be used for communication between our ESP32 board and the sensor.&lt;/p&gt;
+
+&lt;p&gt;Next, we will cover how I2C works, which will be important to understand when we will start coding.&lt;/p&gt;
+
+&lt;h3 id=&quot;a-few-words-on-i2c&quot;&gt;A few words on I2C&lt;/h3&gt;
+
+&lt;p&gt;I2C is a synchronous communication protocol that allows multiple devices to exchange information. Synchronous means that all connected devices are synchronized using a common clock. In the case of I2C, the clock is ticking over the SCL wire.&lt;/p&gt;
+
+&lt;p&gt;All frames and clock signals are sent in binary format. To achieve this, a set of thresholds is selected. For example, if the voltage on the wire is between 0.4V and 0.8V it is considered 0, and if it is from 2V to 2.7V then it is considered high. All other values are considered to be invalid.  Different microcontrollers use different thresholds, so there are a few common sets of thresholds.  Concrete values are not important for our purposes as long as you catch the main point.&lt;/p&gt;
+
+&lt;p&gt;Let’s expand a bit on what do we mean by saying “clock”. It is actually no more than a periodic pulse of some predetermined frequency&lt;label for=&quot;6&quot; class=&quot;margin-toggle sidenote-number&quot;&gt;&lt;/label&gt;&lt;input type=&quot;checkbox&quot; id=&quot;6&quot; class=&quot;margin-toggle&quot; /&gt;&lt;span class=&quot;sidenote&quot;&gt;Most I2C devices can communicate at  the clock rate of 100kHz or 400kHz &lt;/span&gt;. By itself, the clock is not very useful, but combined with the second wire SDA it allows for data transfer between one or more primary devices called masters and multiple secondary devices called slaves. In the idle state, the clock is constantly pulsing, while the SDA line is set to 1 in idle state.&lt;/p&gt;
+
+&lt;figure&gt;&lt;figcaption&gt;&lt;/figcaption&gt;&lt;img src=&quot;/assets/img/esp32-weather-station/post-1/i2c-Clock.png&quot; /&gt;&lt;/figure&gt;
+
+&lt;p&gt;In I2C the information is exchanged in blocks called frames. Each frame contains 8 bits of information and an additional ACK/NACK bit that is used for confirmation from the slave device. After the first 8 bits of the frame is sent, the slave device is given control over SDA. To acknowledge that the frame was received, the device must pull the SDA line low before the 9th clock pulse. If it did not do this, then the master device can deduce that something bad had happened and decide how to proceed.&lt;/p&gt;
+
+&lt;p&gt;The master device is the one to start the communication. In I2C, masters can send 2 types of messages also called frames: address frame and data frame. The address frame is used to select a slave device that should receive the data, which comes in the next one or several frames.&lt;/p&gt;
+
+&lt;p&gt;First, we need to indicate that data transfer is about to happen. A special &lt;strong&gt;start condition&lt;/strong&gt; is used for this purpose: the master device must set SCL to 1 and pull SDA to 0 after that&lt;label for=&quot;7&quot; class=&quot;margin-toggle sidenote-number&quot;&gt;&lt;/label&gt;&lt;input type=&quot;checkbox&quot; id=&quot;7&quot; class=&quot;margin-toggle&quot; /&gt;&lt;span class=&quot;sidenote&quot;&gt;Note that master always oscillates SCL at a constant rate. So the start condition might be seen as waiting when the clock is hight and then setting the SDA line to  &lt;/span&gt;. This action notifies all slave devices that the data transmission is about to begin.&lt;/p&gt;
+
+&lt;figure&gt;&lt;figcaption&gt;&lt;/figcaption&gt;&lt;img src=&quot;/assets/img/esp32-weather-station/post-1/i2c-Start_condition.png&quot; /&gt;&lt;/figure&gt;
+
+&lt;p&gt;The next frame is always the &lt;strong&gt;address frame&lt;/strong&gt;. Each device address in I2C is 7 bits long&lt;label for=&quot;8&quot; class=&quot;margin-toggle sidenote-number&quot;&gt;&lt;/label&gt;&lt;input type=&quot;checkbox&quot; id=&quot;8&quot; class=&quot;margin-toggle&quot; /&gt;&lt;span class=&quot;sidenote&quot;&gt;0000001, 0000010, 0000011 and so on &lt;/span&gt;. The address frame contains those 1 bits which are read by slave devices each time the clock goes high. Those 7 bits are then followed by a single read/write bit which indicates if the following data frames will read or write information.&lt;/p&gt;
+
+&lt;figure&gt;&lt;figcaption&gt;&lt;/figcaption&gt;&lt;img src=&quot;/assets/img/esp32-weather-station/post-1/i2c-Address_Frame.png&quot; /&gt;&lt;/figure&gt;
+
+&lt;p&gt;The following one or more frames are &lt;strong&gt;data frames&lt;/strong&gt;, which also contain 8 bis of information followed by ACK/NACK&lt;label for=&quot;9&quot; class=&quot;margin-toggle sidenote-number&quot;&gt;&lt;/label&gt;&lt;input type=&quot;checkbox&quot; id=&quot;9&quot; class=&quot;margin-toggle&quot; /&gt;&lt;span class=&quot;sidenote&quot;&gt;&lt;strong&gt;ACK&lt;/strong&gt;nowledged/&lt;strong&gt;N&lt;/strong&gt;ot &lt;strong&gt;ACK&lt;/strong&gt;nowledged &lt;/span&gt; bit. Each bit is set by the master before the clock transitions from 0 to 1. While the clock is 1, the slave device can read the incoming bit. The data will be received by the addressed slave device until a &lt;strong&gt;stop condition&lt;/strong&gt; is met: the master device pulls the SDA from 0 to 1 right after the SCL transitioned from 0 to 1.&lt;/p&gt;
+
+&lt;figure&gt;&lt;figcaption&gt;&lt;/figcaption&gt;&lt;img src=&quot;/assets/img/esp32-weather-station/post-1/i2c-DataFrame.png&quot; /&gt;&lt;/figure&gt;
+
+&lt;h1 id=&quot;to-be-continued&quot;&gt;To Be Continued&lt;/h1&gt;
+
+&lt;p&gt;At this point, we have outlined out architecture and tech stack, chose and wired up the hardware and got into how integrated circuits can communicate between each other using two wires and I2C protocol.&lt;/p&gt;
+
+&lt;p&gt;In the next post we will harness the power of ESP32 by writing a firmware which will collect data from BME280 and send it to our MQTT server via wireless network. Subscribe to the RSS feed to get notified when the next post comes out.&lt;/p&gt;
+</description>
+        <pubDate>Fri, 12 Jun 2020 20:00:00 -0400</pubDate>
+        <link>/articles/hardware/build-yourself-a-weather-station</link>
+        <guid isPermaLink="true">/articles/hardware/build-yourself-a-weather-station</guid>
+        
+        
+        <category>hardware</category>
+        
+      </item>
     
       <item>
         <title>The beauty of hardware</title>
         <description>&lt;p&gt;My life is tied to software. I first got interested in it in the year 2001, when I saw my father reading a C++ book. Since then, I learned and built and failed and learned again up to this day. Over those years, I’ve learned about different programming languages, peeked into the inner workings of operating systems, databases, and compilers. Back in the old days, I have tried to build simple bootloaders and operating systems in assembly using my old PC-iMac clone.&lt;/p&gt;
-
-&lt;figure&gt;&lt;figcaption&gt;&lt;/figcaption&gt;&lt;img src=&quot;/assets/img/eone.jpg&quot; /&gt;&lt;/figure&gt;
 
 &lt;p&gt;Yet, somehow, I have always avoided getting into hardware. How does a CPU work? How RAM stores a single bit of memory? It was all black magic to me. Computers just worked. Maybe, your case is the same as mine. In this post, I will provide a short intro to digital electronics and give you some references on how to advance your studies further. &lt;!--more--&gt;&lt;/p&gt;
 
@@ -72,7 +198,7 @@ The concepts of abstraction and encapsulation are used in hardware much like the
 
 &lt;p&gt;Relays are were a breakthrough, but they had some severe issures: they are costly, large, and they break often. Computers that used relays were big and noisy. If you want to hear some satisfactory clicking, play a video below:&lt;/p&gt;
 
-&lt;iframe width=&quot;560&quot; height=&quot;315&quot; src=&quot;https://www.youtube.com/embed/k1hJoalcK68?start=69&quot; frameborder=&quot;0&quot; allow=&quot;accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture&quot; allowfullscreen=&quot;&quot; style=&quot;display: block; margin: 0 auto;&quot;&gt;&lt;/iframe&gt;
+&lt;iframe width=&quot;560&quot; height=&quot;315&quot; src=&quot;https://www.youtube.com/embed/k1hJoalcK68?start=69&quot; frameborder=&quot;0&quot; allow=&quot;accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture&quot; allowfullscreen=&quot;&quot; style=&quot;margin: 3% 5%;&quot;&gt;&lt;/iframe&gt;
 
 &lt;p&gt;Since the device that you use to read this post is not sounding like an electrified drummer, we can deduce that something had replaced relays during technological evolution. The thing is called a transistor. Transistor has an arguably fancier name, but it’s functioning almost the same as a relay. The major change is that there is no physical switch inside anymore.&lt;/p&gt;
 
