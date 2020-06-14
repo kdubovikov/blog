@@ -13,7 +13,7 @@ I live pretty far away from the office, so my commute can take from 2.5 to 4 hou
 
 A couple of months ago I started diving into the electronics, microcontrollers, and PCBs, so a side-project idea naturally came up to a surface. I'll create a simple weather station that will check humidity and temperature outside every morning and notify me if I need to take an umbrella or warm clothes. This is a fun and easy IoT project from the hardware perspective, so I decided to give it a try.
 
-In this series of posts, we will cover how to build an IoT weather station powered up by a web dashboard and Telegram bot. We will start from the birds-eye view first and cover the architecture of what we are going to make.
+In this series of posts, we will cover how to build an IoT weather station powered up by a web dashboard and Telegram bot. We will start from the birds-eye view first and cover the architecture of what we are going to make. <!--more--> 
 
 # Architecture
 

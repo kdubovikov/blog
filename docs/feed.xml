@@ -5,8 +5,8 @@
     <description>My thoughts on everything :)</description>
     <link>/</link>
     <atom:link href="/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Sun, 14 Jun 2020 00:15:19 -0400</pubDate>
-    <lastBuildDate>Sun, 14 Jun 2020 00:15:19 -0400</lastBuildDate>
+    <pubDate>Sun, 14 Jun 2020 03:23:30 -0400</pubDate>
+    <lastBuildDate>Sun, 14 Jun 2020 03:23:30 -0400</lastBuildDate>
     <generator>Jekyll v4.0.0</generator>
     
       <item>
@@ -19,7 +19,7 @@
 
 &lt;p&gt;A couple of months ago I started diving into the electronics, microcontrollers, and PCBs, so a side-project idea naturally came up to a surface. I’ll create a simple weather station that will check humidity and temperature outside every morning and notify me if I need to take an umbrella or warm clothes. This is a fun and easy IoT project from the hardware perspective, so I decided to give it a try.&lt;/p&gt;
 
-&lt;p&gt;In this series of posts, we will cover how to build an IoT weather station powered up by a web dashboard and Telegram bot. We will start from the birds-eye view first and cover the architecture of what we are going to make.&lt;/p&gt;
+&lt;p&gt;In this series of posts, we will cover how to build an IoT weather station powered up by a web dashboard and Telegram bot. We will start from the birds-eye view first and cover the architecture of what we are going to make. &lt;!--more--&gt;&lt;/p&gt;
 
 &lt;h1 id=&quot;architecture&quot;&gt;Architecture&lt;/h1&gt;
 
