@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html>
+  <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>Building yourself a weather station. Part 2</title>
+  <meta name="description" content="Writing code for ESP32In the previous post, we have covered the hardware setup for building a weather station. Starting from now, we will start coding. The f...">
+
+  <!-- Google Fonts loaded here depending on setting in _data/options.yml true loads font, blank does not-->
+  
+    <link href='//fonts.googleapis.com/css?family=Lato:400,400italic' rel='stylesheet' type='text/css'>
+  
+  
+  <!-- Load up MathJax script if needed ... specify in /_data/options.yml file-->
+  
+    <script type="text/javascript" src="//cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+  
+
+  <link rel="stylesheet" type="text/css" href="/css/tufte.css">
+  <!-- <link rel="stylesheet" type="text/css" href="/css/print.css" media="print"> -->
+
+  <link rel="canonical" href="/articles/hardware/build-yourself-a-weathe-station-part-2">
+
+  <link rel="alternate" type="application/rss+xml" title="Kirill Dubovikov" href="/feed.xml" />
+  <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" >
+  <link rel="stylesheet" href="/css/animate.css" />
+
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@8.4.0/dist/mermaid.min.js"></script>
+  <script src="/scripts/wow.min.js"></script>
+  <script>
+  new WOW().init();
+  </script>
+
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=UA-166077200-1"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'UA-166077200-1');
+  </script>
+
+  <script data-name="BMC-Widget" src="https://cdnjs.buymeacoffee.com/1.0.0/widget.prod.min.js" data-id="kdubovikov" data-description="Support me" data-message="Support this blog" data-color="#D7CDCC" data-position="right" data-x_margin="40" data-y_margin="18"></script>
+</head>
+
+  <body>
+    <!--- Header and nav template site-wide -->
+<header>
+    <nav class="group">
+	<div class="head-social-links">
+	
+	
+		
+  	
+		
+		    
+		      <a href="/css/print.css"></a>
+		    
+	    
+  	
+		
+  	
+		
+		    
+		      <a href="/">Kirill Dubovikov</a>
+		    
+	    
+  	
+		
+		    
+		      <a href="/categories/">Categories</a>
+		    
+	    
+  	
+    
+        <a class="social-link" href="//www.twitter.com/kdubovikov"><span class="icon-twitter"/></a>
+    
+        <a class="social-link" href="//github.com/kdubovikov"><span class="icon-github"/></a>
+    
+        <a class="social-link" href="//linkedin.com/in/kirill-dubovikov-2a20b154/"><span class="icon-linkedin"/></a>
+      
+	</div>
+	</nav>
+</header>
+    <article class="group">
+      <h1 class="contrast">Building yourself a weather station. Part 2</h1>
+<p class="subtitle">June 20, 2020</p>
+
+<h1 id="writing-code-for-esp32">Writing code for ESP32</h1>
+
+<p>In the <a href="https://blog.kdubovikov.ml/articles/hardware/build-yourself-a-weather-station">previous post</a>, we have covered the hardware setup for building a weather station. Starting from now, we will start coding. The first missing piece is the firmware for ESP32.</p>
+
+<!--more-->
+
+<p>This firmware should read the data from BME280 and publish it to the MQTT topic. For ESP32 we have two options: using the Arduino framework or ESP-IDF. While Arduino is extremely popular and easy to use, I have decided to go with ESP-IDF for the following reasons:</p>
+
+<ul>
+  <li>Although lower level, it gives you more control over the chip</li>
+  <li>It packs a lot of functionality and is <a href="https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/index.html">well-documented</a>. Look the features <a href="https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/index.html">here</a></li>
+  <li>It has a <a href="https://github.com/espressif/esp-idf/tree/master/examples">set of examples</a> that demonstrate how you can work with the framework</li>
+  <li>It has a configurable build system that allows you to create independent components that can be used by other developers.</li>
+  <li>It supports <a href="https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/jtag-debugging/debugging-examples.html?highlight=debug">debugging</a> and <a href="https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/unit-tests.html?highlight=test">unit-testing</a></li>
+</ul>
+
+<p>Arduino hides a lot of complexity and requires less boilerplate code, but ESP-IDF is something that you will have more changes using in more serious projects so we will go with it to put ourselves in more realistic conditions.</p>
+
+<h1 id="code-for-this-post">Code for this post</h1>
+
+<p>You can find the complete code at <a href="https://github.com/kdubovikov/weather-station-esp">github repository</a>.</p>
+
+<h1 id="setting-up-a-project-and-connecting-to-esp">Setting up a project and connecting to ESP</h1>
+
+<p>ESP-IDF is written in C. If you are not familiar with the language, just go through <a href="https://learnxinyminutes.com/docs/c/">Learn C in Y minutes</a>, it will give you a good start.</p>
+
+<p>After that, go through <a href="https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/index.html">getting started</a> guide at ESP-IDF documentation. It will cover how to download the framework and set up an example project. The most difficult part would be connecting to your ESP32 dev board via USB port. If you are using a Macbook with USB-C ports you will need to use a USB-C to USB adapter and a micro USB cable. I had no success with any kind of hub, but a simple adapter cable worked just fine.</p>
+
+<figure><figcaption></figcaption><img src="/assets/img/esp32-weather-station/post-2/usb-c.jpg" /></figure>
+
+<p>Be sure to install drivers, as advised on this <a href="https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/establish-serial-connection.html">documentation page</a>. For Macbook pro you will need <a href="https://www.silabs.com/products/development-tools/software/usb-to-uart-bridge-vcp-drivers">CP210x drivers from Silicon Labs</a>.</p>
+
+<p>The reason you need drivers is that your computer does not understand the language ESP32 speaks. ESP32 transfers data to the external world using a serial protocol <label for="1" class="margin-toggle sidenote-number"></label><input type="checkbox" id="1" class="margin-toggle" /><span class="sidenote">Serial protocol  means that data is transferred one bit at a time. The I2C protocol that we were discussing in the previous post is a serial protocol. On the opposite side are parallel protocols, which  use multiple wires to transmit several bits at once </span> named <a href="https://en.wikipedia.org/wiki/RS-232">RS-232</a>. To bridge serial interface with the USB interface your devboard uses a special bridge chip that acts as a protocol converter. In the case of my board, it is the CP210x. The problem is that your computer does not know how to handle data from your devboard. It assumes that it receives data encoded by some of the standard data transfer protocols of the USB world. Thunderbolt, for example. And in reality, it receives data encoded by a bridge chip. To solve this linguistic inconvenience you install a special driver that decodes signals from the bridge chip and masquerades itself as a virtual COM <label for="2" class="margin-toggle sidenote-number"></label><input type="checkbox" id="2" class="margin-toggle" /><span class="sidenote">COM port is a computers serial inferface. Those ports were pretty common in desktop PCs but are long absent from modern laptops. Operating systems still have drivers for COM devices, so that’s a natural choice for emulating serial communication </span> device.</p>
+
+<h1 id="what-will-the-firmware-do">What will the firmware do?</h1>
+
+<p>We will write a firmware that will follow <strong>the visious cycle of weather measurment</strong>:</p>
+
+<ol>
+  <li>Connect to a WiFi network</li>
+  <li>Connect to MQTT server</li>
+  <li>Read data from BME280 sensor</li>
+  <li>Publish the newly read data to the MQTT topic</li>
+  <li>Go in deep sleep and wake after several hours to repeat all steps starting from 1</li>
+</ol>
+
+<h1 id="project-structure">Project structure</h1>
+
+<p>To continue, you may clone <a href="https://github.com/kdubovikov/weather-station-esp">this repository</a> and explore the code along with the post. The code is separated into 4 main modules:</p>
+
+<ul>
+  <li><code class="highlighter-rouge">weather_station.c</code> — the primary module that implements <strong>the</strong> <strong>vicious cycle of weather measurement</strong></li>
+  <li><code class="highlighter-rouge">wifi.c</code> — everything related to WiFi connectivity</li>
+  <li><code class="highlighter-rouge">sensor.c</code>— the code for reading data from BME280 using I2C protocol</li>
+  <li><code class="highlighter-rouge">mqtt.c</code> — the code for connecting and publishing messages to MQTT server</li>
+</ul>
+
+<p>All modules are stored in the <a href="https://github.com/kdubovikov/weather-station-esp/tree/master/main">main</a> folder. We’ll also need to mention our modules in the <code class="highlighter-rouge">CMakeLists.txt</code> so that ESP-IDF’s build system would understand that we need all those source files to compile the project:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>idf_component_register(SRCS "weather_station.c" "wifi.c" "sensor.c" "mqtt.c"
+                       INCLUDE_DIRS ".")
+</code></pre></div></div>
+
+<p>Now, lets dive into each module and see how it works.</p>
+
+<h2 id="connecting-to-wifi">Connecting to WiFi</h2>
+
+<p>To build this module, I have borrowed heavily from the <a href="https://github.com/espressif/esp-idf/tree/release/v4.0/examples/wifi/getting_started/station">WiFi example</a> provided by the framework. In fact, the project was based on this template. The original example connects to the WiFi asynchronously, but a blocking call that waits until we got an IP address from the access point will be useful to us since we want to wait for a WiFi connection before going on and connecting to the MQTT server.</p>
+
+<p>To create a blocking function we’ll use a handy <code class="highlighter-rouge">EventGroup</code> functionality from the FreeRTOS<label for="3" class="margin-toggle sidenote-number"></label><input type="checkbox" id="3" class="margin-toggle" /><span class="sidenote">Free Real Time Operating System contains lots of useful primitives for dealing with concurrency, multiprocessing and synchronization </span>. Events groups allow you to define an event which you can wait for in any other part of your code:</p>
+
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// Define an event</span>
+<span class="n">EventGroupHandle_t</span><span class="o">*</span> <span class="n">connected_event_group</span> <span class="o">=</span> <span class="p">(</span><span class="n">EventGroupHandle_t</span><span class="o">*</span><span class="p">)</span> <span class="n">arg</span><span class="p">;</span>
+
+<span class="c1">// ... code that connects to WiFi is ommited for brevity</span>
+
+<span class="c1">// Hooray, we have connected. Fire the event</span>
+<span class="n">xEventGroupSetBits</span><span class="p">(</span><span class="o">*</span><span class="n">connected_event_group</span><span class="p">,</span> <span class="n">WIFI_CONNECTED_BITS</span><span class="p">);</span>
+
+<span class="c1">// ...</span>
+<span class="c1">// You can wait for connection in some other function</span>
+<span class="n">xEventGroupWaitBits</span><span class="p">(</span><span class="o">*</span><span class="n">connected_event_group</span><span class="p">,</span> <span class="n">WIFI_CONNECTED_BITS</span><span class="p">,</span> <span class="nb">true</span><span class="p">,</span> <span class="nb">true</span><span class="p">,</span> <span class="n">portMAX_DELAY</span><span class="p">);</span>
+</code></pre></div></div>
+
+<p><code class="highlighter-rouge">xEventGroupWaitBits</code> is what <code class="highlighter-rouge">wifi_connect_blocking</code> function uses to block and wait while the board will establish a wifi connection.</p>
+
+<p>All WiFi-related code is located at the <code class="highlighter-rouge">wifi.c</code> file. The best function to start with is <code class="highlighter-rouge">wifi_connect_blocking</code></p>
+
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cm">/**
+ * @brief connect to WiFi network. Connection settings will be taken from sdkconfig file
+ * 
+ * @param connected_event_group will block on this event group until the connection is established
+ */</span>
+<span class="kt">void</span> <span class="nf">wifi_connect_blocking</span><span class="p">(</span><span class="n">EventGroupHandle_t</span><span class="o">*</span> <span class="n">connected_event_group</span><span class="p">)</span> <span class="p">{</span>
+    <span class="c1">// initialize TCP adapter</span>
+    <span class="n">tcpip_adapter_init</span><span class="p">();</span>
+
+    <span class="c1">// ESP_ERROR_CHECK is just a useful macro that checks that the function returned ESP_OK and logs error otherwise</span>
+    <span class="n">ESP_ERROR_CHECK</span><span class="p">(</span><span class="n">esp_event_loop_create_default</span><span class="p">());</span>
+
+    <span class="c1">// initialize WiFi adapter and set default config</span>
+    <span class="n">wifi_init_config_t</span> <span class="n">cfg</span> <span class="o">=</span> <span class="n">WIFI_INIT_CONFIG_DEFAULT</span><span class="p">();</span>
+    <span class="n">ESP_ERROR_CHECK</span><span class="p">(</span><span class="n">esp_wifi_init</span><span class="p">(</span><span class="o">&amp;</span><span class="n">cfg</span><span class="p">));</span>
+
+    <span class="c1">// here we register our connected_event_group as a handler for all WiFi related events, </span>
+    <span class="c1">// as well as IP_EVENT that indicates that connection was established successfully</span>
+    <span class="n">ESP_ERROR_CHECK</span><span class="p">(</span><span class="n">esp_event_handler_register</span><span class="p">(</span><span class="n">WIFI_EVENT</span><span class="p">,</span> <span class="n">ESP_EVENT_ANY_ID</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">wifi_event_handler</span><span class="p">,</span> <span class="n">connected_event_group</span><span class="p">));</span>
+    <span class="n">ESP_ERROR_CHECK</span><span class="p">(</span><span class="n">esp_event_handler_register</span><span class="p">(</span><span class="n">IP_EVENT</span><span class="p">,</span> <span class="n">IP_EVENT_STA_GOT_IP</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">wifi_event_handler</span><span class="p">,</span> <span class="n">connected_event_group</span><span class="p">));</span>
+
+    <span class="c1">// set up some settings from sdkconfig. You can use esp-idf.py menuconfig to change those variables interactively</span>
+    <span class="n">wifi_config_t</span> <span class="n">wifi_config</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="p">.</span><span class="n">sta</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="p">.</span><span class="n">ssid</span> <span class="o">=</span> <span class="n">CONFIG_WIFI_SSID</span><span class="p">,</span>
+            <span class="p">.</span><span class="n">password</span> <span class="o">=</span> <span class="n">CONFIG_WIFI_PASSWORD</span><span class="p">,</span>
+            <span class="p">.</span><span class="n">scan_method</span> <span class="o">=</span> <span class="n">DEFAULT_SCAN_METHOD</span><span class="p">,</span>
+            <span class="p">.</span><span class="n">sort_method</span> <span class="o">=</span> <span class="n">DEFAULT_SORT_METHOD</span><span class="p">,</span>
+            <span class="p">.</span><span class="n">threshold</span><span class="p">.</span><span class="n">rssi</span> <span class="o">=</span> <span class="n">DEFAULT_RSSI</span><span class="p">,</span>
+            <span class="p">.</span><span class="n">threshold</span><span class="p">.</span><span class="n">authmode</span> <span class="o">=</span> <span class="n">DEFAULT_AUTHMODE</span><span class="p">,</span>
+        <span class="p">},</span>
+    <span class="p">};</span>
+    <span class="n">ESP_ERROR_CHECK</span><span class="p">(</span><span class="n">esp_wifi_set_mode</span><span class="p">(</span><span class="n">WIFI_MODE_STA</span><span class="p">));</span>
+    <span class="n">ESP_ERROR_CHECK</span><span class="p">(</span><span class="n">esp_wifi_set_config</span><span class="p">(</span><span class="n">ESP_IF_WIFI_STA</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">wifi_config</span><span class="p">));</span>
+
+    <span class="c1">// start up the WiFi module</span>
+    <span class="n">ESP_ERROR_CHECK</span><span class="p">(</span><span class="n">esp_wifi_start</span><span class="p">());</span>
+
+    <span class="c1">// wait for connection</span>
+    <span class="n">xEventGroupWaitBits</span><span class="p">(</span><span class="o">*</span><span class="n">connected_event_group</span><span class="p">,</span> <span class="n">WIFI_CONNECTED_BITS</span><span class="p">,</span> <span class="nb">true</span><span class="p">,</span> <span class="nb">true</span><span class="p">,</span> <span class="n">portMAX_DELAY</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>You can notice that we are registering WiFi event handlers that do the actual logic like this: <code class="highlighter-rouge">esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &amp;wifi_event_handler, connected_event_group)</code>. The first two parameters scope our handler to catch any WiFi-related events with <code class="highlighter-rouge">wifi_event_handler</code> referenced by the third parameter. <code class="highlighter-rouge">connected_event_group</code> will be passed as an argument to the handler. Now, let’s look at how the handler works:</p>
+
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cm">/**
+ * @brief Initialize Wi-Fi as sta and set scan method 
+ * 
+ * @param arg a pointer to EventGroupHandle_t that will be used to send connected event
+ * @param event_base set by ESP-IDF
+ * @param event_id set by ESP-IDF
+ * @param event_data set by ESP-IDF
+ */</span>
+<span class="k">static</span> <span class="kt">void</span> <span class="nf">wifi_event_handler</span><span class="p">(</span><span class="kt">void</span> <span class="o">*</span><span class="n">arg</span><span class="p">,</span> <span class="n">esp_event_base_t</span> <span class="n">event_base</span><span class="p">,</span>
+                          <span class="kt">int32_t</span> <span class="n">event_id</span><span class="p">,</span> <span class="kt">void</span> <span class="o">*</span><span class="n">event_data</span><span class="p">)</span> <span class="p">{</span>
+    <span class="c1">// cast our handler argument to EventGroupHandle_t</span>
+    <span class="n">EventGroupHandle_t</span><span class="o">*</span> <span class="n">connected_event_group</span> <span class="o">=</span> <span class="p">(</span><span class="n">EventGroupHandle_t</span><span class="o">*</span><span class="p">)</span> <span class="n">arg</span><span class="p">;</span>
+
+    <span class="k">if</span> <span class="p">(</span><span class="n">event_base</span> <span class="o">==</span> <span class="n">WIFI_EVENT</span> <span class="o">&amp;&amp;</span> <span class="n">event_id</span> <span class="o">==</span> <span class="n">WIFI_EVENT_STA_START</span><span class="p">)</span>
+    <span class="p">{</span>
+        <span class="c1">// try to connect to WiFi nework if STAtion is started</span>
+        <span class="n">esp_wifi_connect</span><span class="p">();</span>
+    <span class="p">}</span>
+    <span class="k">else</span> <span class="k">if</span> <span class="p">(</span><span class="n">event_base</span> <span class="o">==</span> <span class="n">WIFI_EVENT</span> <span class="o">&amp;&amp;</span> <span class="n">event_id</span> <span class="o">==</span> <span class="n">WIFI_EVENT_STA_DISCONNECTED</span><span class="p">)</span>
+    <span class="p">{</span>
+        <span class="c1">// in case we were disconnected, try to connect again</span>
+        <span class="n">esp_wifi_connect</span><span class="p">();</span>
+    <span class="p">}</span>
+    <span class="k">else</span> <span class="k">if</span> <span class="p">(</span><span class="n">event_base</span> <span class="o">==</span> <span class="n">IP_EVENT</span> <span class="o">&amp;&amp;</span> <span class="n">event_id</span> <span class="o">==</span> <span class="n">IP_EVENT_STA_GOT_IP</span><span class="p">)</span>
+    <span class="p">{</span>
+        <span class="c1">// log IP and fire our connected_event_group if the connection was successful</span>
+        <span class="n">ip_event_got_ip_t</span> <span class="o">*</span><span class="n">event</span> <span class="o">=</span> <span class="p">(</span><span class="n">ip_event_got_ip_t</span> <span class="o">*</span><span class="p">)</span><span class="n">event_data</span><span class="p">;</span>
+        <span class="n">ESP_LOGI</span><span class="p">(</span><span class="n">TAG</span><span class="p">,</span> <span class="s">"got ip: %s"</span><span class="p">,</span> <span class="n">ip4addr_ntoa</span><span class="p">(</span><span class="o">&amp;</span><span class="n">event</span><span class="o">-&gt;</span><span class="n">ip_info</span><span class="p">.</span><span class="n">ip</span><span class="p">));</span>
+        <span class="n">xEventGroupSetBits</span><span class="p">(</span><span class="o">*</span><span class="n">connected_event_group</span><span class="p">,</span> <span class="n">WIFI_CONNECTED_BITS</span><span class="p">);</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>The main purpose of the handler is to wait for the board to get a successful connection and fire <code class="highlighter-rouge">WIFI_CONNECTED_BITS</code> event to the event group.</p>
+
+<p>The next important part is to make readings from our BME280 sensor, so let’s explore how to do that.</p>
+
+<h2 id="reading-data-from-the-sensor">Reading data from the sensor</h2>
+
+<p>Thanks to the great <a href="https://github.com/UncleRus/esp-idf-lib">esp-idf-lib</a> component library there is only a single function related to the BME280. The library contains a ready to work component that interfaces with the sensor, so we don’t need to write low-level I2C communication code ourselves. The creators of the library took If you want to study implemented all required procedures from the datasheet, including a compensation algorithm so that we have a simple interface to work with. If you want to study how this works, then refer to the B<a href="https://github.com/UncleRus/esp-idf-lib/blob/master/components/bmp280/bmp280.c">MP280 component code</a> and the <a href="https://ae-bst.resource.bosch.com/media/_tech/media/datasheets/BST-BMP280-DS001.pdf">datasheet</a>.</p>
+
+<p>The code related to sensor readings is located at <code class="highlighter-rouge">sensor.c</code> file:</p>
+
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cm">/**
+ * @brief collect data from BME280 sensor
+ * 
+ * @param pvParamters a pointer to QueueHandle_t to which this function will send the data collected from the sensor
+ */</span>
+<span class="kt">void</span> <span class="nf">bmp280_collect_data</span><span class="p">(</span><span class="kt">void</span> <span class="o">*</span><span class="n">pvParamters</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="c1">// cast parameter pointer to QueueHandle_t</span>
+    <span class="n">QueueHandle_t</span> <span class="n">queue</span> <span class="o">=</span> <span class="p">(</span><span class="n">QueueHandle_t</span><span class="p">)</span> <span class="n">pvParamters</span><span class="p">;</span>
+
+    <span class="c1">// initialize the sensor</span>
+    <span class="n">bmp280_params_t</span> <span class="n">params</span><span class="p">;</span>
+    <span class="n">bmp280_init_default_params</span><span class="p">(</span><span class="o">&amp;</span><span class="n">params</span><span class="p">);</span>
+    <span class="n">bmp280_t</span> <span class="n">dev</span><span class="p">;</span>
+    <span class="n">memset</span><span class="p">(</span><span class="o">&amp;</span><span class="n">dev</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">bmp280_t</span><span class="p">));</span>
+
+    <span class="c1">// we use pins 21 and 22 for data transfer between sensor and ESP32</span>
+    <span class="c1">// note that BMP280_I2C_ADDRESS_0 holds a constant preset address 0x76</span>
+    <span class="c1">// which is used by all BMP280 sensors</span>
+    <span class="n">ESP_ERROR_CHECK</span><span class="p">(</span><span class="n">bmp280_init_desc</span><span class="p">(</span><span class="o">&amp;</span><span class="n">dev</span><span class="p">,</span> <span class="n">BMP280_I2C_ADDRESS_0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">SDA_PIN</span><span class="p">,</span> <span class="n">SCL_PIN</span><span class="p">));</span>
+    <span class="n">ESP_ERROR_CHECK</span><span class="p">(</span><span class="n">bmp280_init</span><span class="p">(</span><span class="o">&amp;</span><span class="n">dev</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">params</span><span class="p">));</span>
+
+    <span class="c1">// check if we have detected BME280 or BMP280 modification of the sensor</span>
+    <span class="n">bool</span> <span class="n">bme280p</span> <span class="o">=</span> <span class="n">dev</span><span class="p">.</span><span class="n">id</span> <span class="o">==</span> <span class="n">BME280_CHIP_ID</span><span class="p">;</span>
+    <span class="n">printf</span><span class="p">(</span><span class="s">"BMP280: found %s</span><span class="se">\n</span><span class="s">"</span><span class="p">,</span> <span class="n">bme280p</span> <span class="o">?</span> <span class="s">"BME280"</span> <span class="o">:</span> <span class="s">"BMP280"</span><span class="p">);</span>
+
+    <span class="c1">// the fun part starts here</span>
+    <span class="c1">// read data from the sensor, create a WeatherMessage struct and send it to the queue</span>
+    <span class="kt">float</span> <span class="n">pressure</span><span class="p">,</span> <span class="n">temperature</span><span class="p">,</span> <span class="n">humidity</span><span class="p">;</span>
+
+    <span class="c1">// we will wait for 500ms before reading any data</span>
+    <span class="n">vTaskDelay</span><span class="p">(</span><span class="mi">500</span> <span class="o">/</span> <span class="n">portTICK_PERIOD_MS</span><span class="p">);</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">bmp280_read_float</span><span class="p">(</span><span class="o">&amp;</span><span class="n">dev</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">temperature</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">pressure</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">humidity</span><span class="p">)</span> <span class="o">!=</span> <span class="n">ESP_OK</span><span class="p">)</span>
+    <span class="p">{</span>
+        <span class="n">ESP_LOGI</span><span class="p">(</span><span class="n">TAG</span><span class="p">,</span> <span class="s">"Temperature/pressure reading failed</span><span class="se">\n</span><span class="s">"</span><span class="p">);</span>
+    <span class="p">}</span>
+    <span class="k">else</span>
+    <span class="p">{</span>
+        <span class="c1">// WeatherMessage is defined in weather_station.h</span>
+        <span class="k">struct</span> <span class="n">WeatherMessage</span> <span class="n">msg</span><span class="p">;</span>
+        <span class="n">msg</span><span class="p">.</span><span class="n">temperature</span> <span class="o">=</span> <span class="n">temperature</span><span class="p">;</span>
+        <span class="n">msg</span><span class="p">.</span><span class="n">humidity</span> <span class="o">=</span> <span class="n">humidity</span><span class="p">;</span>
+        <span class="n">msg</span><span class="p">.</span><span class="n">pressure</span> <span class="o">=</span> <span class="n">pressure</span><span class="p">;</span>
+        <span class="n">ESP_LOGI</span><span class="p">(</span><span class="n">TAG</span><span class="p">,</span> <span class="s">"Sending WeatherMessage to queue: %f %f %f</span><span class="se">\n</span><span class="s">"</span><span class="p">,</span> <span class="n">msg</span><span class="p">.</span><span class="n">temperature</span><span class="p">,</span> <span class="n">msg</span><span class="p">.</span><span class="n">pressure</span><span class="p">,</span> <span class="n">msg</span><span class="p">.</span><span class="n">humidity</span><span class="p">);</span>
+
+        <span class="n">xQueueSendToFront</span><span class="p">(</span><span class="n">queue</span><span class="p">,</span> <span class="p">(</span><span class="kt">void</span> <span class="o">*</span><span class="p">)</span><span class="o">&amp;</span><span class="n">msg</span><span class="p">,</span> <span class="n">xQueueBlockTime</span><span class="p">);</span>
+    <span class="p">}</span>
+
+    <span class="c1">// this should be called if you want FreeRTOS to execute the task once and finish afterwards</span>
+    <span class="n">vTaskDelete</span><span class="p">(</span><span class="nb">NULL</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>This function collects data from the sensor, creates a <code class="highlighter-rouge">WeatherMessage</code> struct, and sends it to the queue which is later processed by the MQTT module, which we will look at next.</p>
+
+<h2 id="sending-messages-to-mqtt-server">Sending messages to MQTT server</h2>
+
+<p><code class="highlighter-rouge">mqtt.c</code> module contains everything related to the MQTT. We will start by looking at the top-level function <code class="highlighter-rouge">mqtt_app_start</code>:</p>
+
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cm">/**
+ * @brief starts the MQTT component
+ * 
+ * @param queue QueueHandle_t for WeatherMessages 
+ */</span>
+<span class="kt">void</span> <span class="nf">mqtt_app_start</span><span class="p">(</span><span class="n">QueueHandle_t</span> <span class="n">queue</span><span class="p">)</span>   
+<span class="p">{</span>
+    <span class="n">ESP_LOGI</span><span class="p">(</span><span class="n">TAG</span><span class="p">,</span> <span class="s">"mqtt_app_start QueueHandle: %p"</span><span class="p">,</span> <span class="n">queue</span><span class="p">);</span>
+    <span class="n">ESP_LOGI</span><span class="p">(</span><span class="n">TAG</span><span class="p">,</span> <span class="s">"Connecting to MQTT server at %s"</span><span class="p">,</span> <span class="n">CONFIG_BROKER_URL</span><span class="p">);</span>
+    <span class="n">esp_mqtt_client_config_t</span> <span class="n">mqtt_cfg</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="p">.</span><span class="n">uri</span> <span class="o">=</span> <span class="n">CONFIG_BROKER_URL</span>
+    <span class="p">};</span>
+
+    <span class="n">esp_mqtt_client_handle_t</span> <span class="n">client</span> <span class="o">=</span> <span class="n">esp_mqtt_client_init</span><span class="p">(</span><span class="o">&amp;</span><span class="n">mqtt_cfg</span><span class="p">);</span>
+    <span class="c1">// let's register our handler</span>
+    <span class="n">esp_mqtt_client_register_event</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">ESP_EVENT_ANY_ID</span><span class="p">,</span> <span class="n">mqtt_event_handler</span><span class="p">,</span> <span class="p">(</span><span class="kt">void</span><span class="o">*</span><span class="p">)</span> <span class="n">queue</span><span class="p">);</span>
+    <span class="n">esp_mqtt_client_start</span><span class="p">(</span><span class="n">client</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Here, we initialize the MQTT client using a <code class="highlighter-rouge">CONFIG_BROKER_URL</code> which can be changed using ESP-IDF configuration system. After that, we register a handler for  MQTT events which will do all of the heavy lifting:</p>
+
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cm">/**
+ * @brief A top-level handler that wraps around mqtt_event_handler_cb 
+ * 
+ * @param handler_args QueueHandle_t queue for WeatherMessages
+ * @param base set by ESP-IDF
+ * @param event_id set by ESP-IDF
+ * @param event_data set by ESP-IDF
+ */</span>
+<span class="k">static</span> <span class="kt">void</span> <span class="nf">mqtt_event_handler</span><span class="p">(</span><span class="kt">void</span> <span class="o">*</span><span class="n">handler_args</span><span class="p">,</span> <span class="n">esp_event_base_t</span> <span class="n">base</span><span class="p">,</span> <span class="kt">int32_t</span> <span class="n">event_id</span><span class="p">,</span> <span class="kt">void</span> <span class="o">*</span><span class="n">event_data</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="n">QueueHandle_t</span> <span class="n">weather_msg_queue</span> <span class="o">=</span> <span class="p">(</span><span class="n">QueueHandle_t</span><span class="p">)</span> <span class="n">handler_args</span><span class="p">;</span>
+    <span class="n">ESP_LOGI</span><span class="p">(</span><span class="n">TAG</span><span class="p">,</span> <span class="s">"mqtt_event_handler QueueHandle: %p"</span><span class="p">,</span> <span class="n">weather_msg_queue</span><span class="p">);</span>
+    <span class="n">ESP_LOGD</span><span class="p">(</span><span class="n">TAG</span><span class="p">,</span> <span class="s">"Event dispatched from event loop base=%s, event_id=%d"</span><span class="p">,</span> <span class="n">base</span><span class="p">,</span> <span class="n">event_id</span><span class="p">);</span>
+    <span class="n">mqtt_event_handler_cb</span><span class="p">(</span><span class="n">event_data</span><span class="p">,</span> <span class="n">weather_msg_queue</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="cm">/**
+ * @brief MQTT event processing handler
+ * 
+ * @param event set by ESP-IDF
+ * @param weather_msg_queue the queue to publish WeatherMessages
+ * @return esp_err_t 
+ */</span>
+<span class="k">static</span> <span class="n">esp_err_t</span> <span class="nf">mqtt_event_handler_cb</span><span class="p">(</span><span class="n">esp_mqtt_event_handle_t</span> <span class="n">event</span><span class="p">,</span>  <span class="n">QueueHandle_t</span> <span class="n">weather_msg_queue</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="c1">// let's get MQTT client from our event handle</span>
+    <span class="n">esp_mqtt_client_handle_t</span> <span class="n">client</span> <span class="o">=</span> <span class="n">event</span><span class="o">-&gt;</span><span class="n">client</span><span class="p">;</span>
+    <span class="k">switch</span> <span class="p">(</span><span class="n">event</span><span class="o">-&gt;</span><span class="n">event_id</span><span class="p">)</span>
+    <span class="p">{</span>
+    <span class="k">case</span> <span class="n">MQTT_EVENT_CONNECTED</span><span class="p">:</span>
+        <span class="c1">// push WeatherMessage to the MQTT topic if we have connected to the server</span>
+        <span class="n">ESP_LOGI</span><span class="p">(</span><span class="n">TAG</span><span class="p">,</span> <span class="s">"MQTT_EVENT_CONNECTED"</span><span class="p">);</span>
+        <span class="n">send_weather_to_mqtt</span><span class="p">(</span><span class="o">&amp;</span><span class="n">client</span><span class="p">,</span> <span class="n">weather_msg_queue</span><span class="p">);</span>
+        <span class="k">break</span><span class="p">;</span>
+    <span class="k">case</span> <span class="n">MQTT_EVENT_DISCONNECTED</span><span class="p">:</span>
+        <span class="c1">// other events are handled mostly for logging and debugging,</span>
+        <span class="c1">// the error messages should be self-explanatory</span>
+        <span class="n">ESP_LOGI</span><span class="p">(</span><span class="n">TAG</span><span class="p">,</span> <span class="s">"MQTT_EVENT_DISCONNECTED"</span><span class="p">);</span>
+        <span class="k">break</span><span class="p">;</span>
+    <span class="k">case</span> <span class="n">MQTT_EVENT_ERROR</span><span class="p">:</span>
+        <span class="n">ESP_LOGE</span><span class="p">(</span><span class="n">TAG</span><span class="p">,</span> <span class="s">"MQTT_EVENT_ERROR"</span><span class="p">);</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">event</span><span class="o">-&gt;</span><span class="n">error_handle</span><span class="o">-&gt;</span><span class="n">error_type</span> <span class="o">==</span> <span class="n">MQTT_ERROR_TYPE_ESP_TLS</span><span class="p">)</span>
+        <span class="p">{</span>
+            <span class="n">ESP_LOGE</span><span class="p">(</span><span class="n">TAG</span><span class="p">,</span> <span class="s">"Last error code reported from esp-tls: 0x%x"</span><span class="p">,</span> <span class="n">event</span><span class="o">-&gt;</span><span class="n">error_handle</span><span class="o">-&gt;</span><span class="n">esp_tls_last_esp_err</span><span class="p">);</span>
+            <span class="n">ESP_LOGE</span><span class="p">(</span><span class="n">TAG</span><span class="p">,</span> <span class="s">"Last tls stack error number: 0x%x"</span><span class="p">,</span> <span class="n">event</span><span class="o">-&gt;</span><span class="n">error_handle</span><span class="o">-&gt;</span><span class="n">esp_tls_stack_err</span><span class="p">);</span>
+        <span class="p">}</span>
+        <span class="k">else</span> <span class="k">if</span> <span class="p">(</span><span class="n">event</span><span class="o">-&gt;</span><span class="n">error_handle</span><span class="o">-&gt;</span><span class="n">error_type</span> <span class="o">==</span> <span class="n">MQTT_ERROR_TYPE_CONNECTION_REFUSED</span><span class="p">)</span>
+        <span class="p">{</span>
+            <span class="n">ESP_LOGE</span><span class="p">(</span><span class="n">TAG</span><span class="p">,</span> <span class="s">"Connection refused error: 0x%x"</span><span class="p">,</span> <span class="n">event</span><span class="o">-&gt;</span><span class="n">error_handle</span><span class="o">-&gt;</span><span class="n">connect_return_code</span><span class="p">);</span>
+        <span class="p">}</span>
+        <span class="k">else</span>
+        <span class="p">{</span>
+            <span class="n">ESP_LOGW</span><span class="p">(</span><span class="n">TAG</span><span class="p">,</span> <span class="s">"Unknown error type: 0x%x"</span><span class="p">,</span> <span class="n">event</span><span class="o">-&gt;</span><span class="n">error_handle</span><span class="o">-&gt;</span><span class="n">error_type</span><span class="p">);</span>
+        <span class="p">}</span>
+        <span class="k">break</span><span class="p">;</span>
+    <span class="nl">default:</span>
+        <span class="n">ESP_LOGI</span><span class="p">(</span><span class="n">TAG</span><span class="p">,</span> <span class="s">"MQTT recieved event id:%d"</span><span class="p">,</span> <span class="n">event</span><span class="o">-&gt;</span><span class="n">event_id</span><span class="p">);</span>
+        <span class="k">break</span><span class="p">;</span>
+    <span class="p">}</span>
+    <span class="k">return</span> <span class="n">ESP_OK</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>The main takeaway from this code is that when we get a <code class="highlighter-rouge">MQTT_EVENT_CONNECTED</code> event we trigger the <code class="highlighter-rouge">send_weather_to_mqtt</code> function which does exactly what it says:</p>
+
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cm">/**
+ * @brief read message from the queue and send it to the MQTT topic
+ * 
+ * @param client MQTT client
+ * @param weather_msg_queue FreeRTOS Queue which contains updates 
+ */</span>
+<span class="k">static</span> <span class="kt">void</span> <span class="nf">send_weather_to_mqtt</span><span class="p">(</span><span class="n">esp_mqtt_client_handle_t</span> <span class="o">*</span><span class="n">client</span><span class="p">,</span> <span class="n">QueueHandle_t</span><span class="o">*</span> <span class="n">weather_msg_queue</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="kt">int</span> <span class="n">msg_id</span><span class="p">;</span>
+    <span class="c1">// if our queue handle points to somewhere</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">weather_msg_queue</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">)</span>
+    <span class="p">{</span>
+        <span class="c1">// wait for the new message to arrive</span>
+        <span class="n">ESP_LOGI</span><span class="p">(</span><span class="n">TAG</span><span class="p">,</span> <span class="s">"Recieving message from the queue"</span><span class="p">);</span>
+        <span class="k">struct</span> <span class="n">WeatherMessage</span> <span class="n">msg</span><span class="p">;</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">xQueueReceive</span><span class="p">(</span><span class="n">weather_msg_queue</span><span class="p">,</span> <span class="o">&amp;</span><span class="p">(</span><span class="n">msg</span><span class="p">),</span> <span class="n">pdMS_TO_TICKS</span><span class="p">(</span><span class="mi">1000</span><span class="p">)))</span>
+        <span class="p">{</span>
+            <span class="n">ESP_LOGI</span><span class="p">(</span><span class="n">TAG</span><span class="p">,</span> <span class="s">"Got new message from the queue"</span><span class="p">);</span>
+
+            <span class="c1">// encode WeatherMessage struct in JSON format using a helper function</span>
+            <span class="kt">char</span> <span class="n">json_msg</span><span class="p">[</span><span class="mi">90</span><span class="p">];</span>
+            <span class="n">create_weather_msg</span><span class="p">(</span><span class="n">json_msg</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">msg</span><span class="p">);</span>
+
+            <span class="c1">// publish JSON message to the MQTT topic</span>
+            <span class="n">ESP_LOGI</span><span class="p">(</span><span class="n">TAG</span><span class="p">,</span> <span class="s">"Sending JSON message: %s"</span><span class="p">,</span> <span class="n">json_msg</span><span class="p">);</span>
+            <span class="n">msg_id</span> <span class="o">=</span> <span class="n">esp_mqtt_client_publish</span><span class="p">(</span><span class="o">*</span><span class="n">client</span><span class="p">,</span> <span class="s">"weather"</span><span class="p">,</span> <span class="n">json_msg</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span>
+            <span class="n">ESP_LOGI</span><span class="p">(</span><span class="n">TAG</span><span class="p">,</span> <span class="s">"sent publish successful, msg_id=%d"</span><span class="p">,</span> <span class="n">msg_id</span><span class="p">);</span>
+
+            <span class="c1">// enable deep sleep mode for SLEEP_TIME ms</span>
+            <span class="c1">// deep sleep lowers the power comsumption to about 0.15 mA, which will make out battery last much longer</span>
+            <span class="c1">// TODO this is a bad place for this code since it clearly violates Single Responsibility Principle</span>
+            <span class="c1">// This should be moved into separate function that will be called elsewhere</span>
+            <span class="k">const</span> <span class="kt">float</span> <span class="n">SLEEP_TIME</span> <span class="o">=</span> <span class="mi">1</span><span class="p">.</span><span class="mi">44</span> <span class="o">*</span> <span class="mf">1e10</span><span class="p">;</span>
+            <span class="n">ESP_LOGI</span><span class="p">(</span><span class="n">TAG</span><span class="p">,</span> <span class="s">"going to deep sleep for %.1f"</span><span class="p">,</span> <span class="n">SLEEP_TIME</span> <span class="o">/</span> <span class="mf">1e6</span><span class="p">);</span>
+            <span class="n">ESP_ERROR_CHECK</span><span class="p">(</span><span class="n">esp_wifi_stop</span><span class="p">());</span>
+            <span class="n">esp_deep_sleep</span><span class="p">(</span><span class="n">SLEEP_TIME</span><span class="p">);</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>It reads<code class="highlighter-rouge">WeatherMessage</code> structure from the queue and serializes it into a JSON message using <code class="highlighter-rouge">create_weather_msg</code>. Those are defined in a <code class="highlighter-rouge">weather_station.c</code> module, but let’s look at them right now so you will have a complete picture of how the code works. The structure definition is really simple:</p>
+
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">struct</span> <span class="n">WeatherMessage</span>
+<span class="p">{</span>
+    <span class="kt">float</span> <span class="n">temperature</span><span class="p">;</span>
+    <span class="kt">float</span> <span class="n">pressure</span><span class="p">;</span>
+    <span class="kt">float</span> <span class="n">humidity</span><span class="p">;</span>
+<span class="p">};</span>
+</code></pre></div></div>
+
+<p>As well as the serialization code. It is not fancy and requires manual work each time you add a new field to the struct. However, it is simple, uses only the standard library, and works for our purposes well since the <code class="highlighter-rouge">WeatherMessage</code> struct won’t change frequently, if at all.</p>
+
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cm">/**
+ * @brief encode a WeatherMessage in JSON format
+ * 
+ * @param msg the output result will be written here
+ * @param msg_struct WeatherMessage to be encoded
+ */</span>
+<span class="kt">void</span> <span class="nf">create_weather_msg</span><span class="p">(</span><span class="kt">char</span> <span class="o">*</span><span class="n">msg</span><span class="p">,</span> <span class="k">struct</span> <span class="n">WeatherMessage</span> <span class="o">*</span><span class="n">msg_struct</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="n">sprintf</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span>
+            <span class="s">"{</span><span class="se">\"</span><span class="s">temp</span><span class="se">\"</span><span class="s">:%.2f,</span><span class="se">\"</span><span class="s">pressure</span><span class="se">\"</span><span class="s">:%.2f,</span><span class="se">\"</span><span class="s">altitude</span><span class="se">\"</span><span class="s">:%.2f,</span><span class="se">\"</span><span class="s">humidity</span><span class="se">\"</span><span class="s">:%.2f}"</span><span class="p">,</span>
+            <span class="n">msg_struct</span><span class="o">-&gt;</span><span class="n">temperature</span><span class="p">,</span> <span class="n">msg_struct</span><span class="o">-&gt;</span><span class="n">pressure</span><span class="p">,</span> <span class="mi">0</span><span class="p">.</span><span class="mi">0</span><span class="p">,</span> <span class="n">msg_struct</span><span class="o">-&gt;</span><span class="n">humidity</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Now, everything that’s left is to explore how everything fits together in the <code class="highlighter-rouge">weather_station.c</code> module.</p>
+
+<h2 id="main-function">Main function</h2>
+
+<p>The main function initializes all required resources and hands off the processing to the modules we have seen before:</p>
+
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cm">/**
+ * @brief Main function of the allication. Orchestrates all tasks.
+ * 1. Collects data from the BME280 sensor
+ * 2. Starts the WiFi module and connects to the access point
+ * 3. Sends collected data to the MQTT server
+ * 4. Enters deep sleep and wakes after predetermined interval
+ */</span>
+<span class="kt">void</span> <span class="nf">app_main</span><span class="p">()</span>
+<span class="p">{</span>
+    <span class="c1">// let's create an EventGroup which will be used to block until WiFi has connected</span>
+    <span class="n">EventGroupHandle_t</span> <span class="n">s_connect_event_group</span> <span class="o">=</span> <span class="n">xEventGroupCreate</span><span class="p">();</span>
+
+    <span class="c1">// a queue for WeatherMessages from the sensor</span>
+    <span class="n">QueueHandle_t</span> <span class="n">queue</span> <span class="o">=</span> <span class="n">xQueueCreate</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="k">sizeof</span><span class="p">(</span><span class="k">struct</span> <span class="n">WeatherMessage</span><span class="p">));</span>
+
+    <span class="n">ESP_LOGI</span><span class="p">(</span><span class="n">TAG</span><span class="p">,</span> <span class="s">"QueueHandle: %p"</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">queue</span><span class="p">);</span>
+
+    <span class="n">esp_log_level_set</span><span class="p">(</span><span class="s">"*"</span><span class="p">,</span> <span class="n">ESP_LOG_INFO</span><span class="p">);</span>
+    <span class="n">esp_log_level_set</span><span class="p">(</span><span class="s">"esp-tls"</span><span class="p">,</span> <span class="n">ESP_LOG_VERBOSE</span><span class="p">);</span>
+    <span class="n">esp_log_level_set</span><span class="p">(</span><span class="s">"MQTT_CLIENT"</span><span class="p">,</span> <span class="n">ESP_LOG_VERBOSE</span><span class="p">);</span>
+    <span class="n">esp_log_level_set</span><span class="p">(</span><span class="s">"MQTT_EXAMPLE"</span><span class="p">,</span> <span class="n">ESP_LOG_VERBOSE</span><span class="p">);</span>
+    <span class="n">esp_log_level_set</span><span class="p">(</span><span class="s">"TRANSPORT_TCP"</span><span class="p">,</span> <span class="n">ESP_LOG_VERBOSE</span><span class="p">);</span>
+    <span class="n">esp_log_level_set</span><span class="p">(</span><span class="s">"TRANSPORT_SSL"</span><span class="p">,</span> <span class="n">ESP_LOG_VERBOSE</span><span class="p">);</span>
+    <span class="n">esp_log_level_set</span><span class="p">(</span><span class="s">"TRANSPORT"</span><span class="p">,</span> <span class="n">ESP_LOG_VERBOSE</span><span class="p">);</span>
+    <span class="n">esp_log_level_set</span><span class="p">(</span><span class="s">"OUTBOX"</span><span class="p">,</span> <span class="n">ESP_LOG_VERBOSE</span><span class="p">);</span>
+
+    <span class="c1">// initialize I2C</span>
+    <span class="n">ESP_ERROR_CHECK</span><span class="p">(</span><span class="n">i2cdev_init</span><span class="p">());</span>
+    <span class="c1">// this FreeRTOS function runs the bmp280_collect_data function in parallel</span>
+    <span class="c1">// we don't need to block on it since we are using a queue to send WeatherMessages</span>
+    <span class="c1">// so all functions will wait for new messages on the queue</span>
+    <span class="n">xTaskCreatePinnedToCore</span><span class="p">(</span><span class="n">bmp280_collect_data</span><span class="p">,</span> <span class="s">"bmp280_collect_data"</span><span class="p">,</span> <span class="n">configMINIMAL_STACK_SIZE</span> <span class="o">*</span> <span class="mi">8</span><span class="p">,</span> <span class="p">(</span><span class="kt">void</span> <span class="o">*</span><span class="p">)</span><span class="n">queue</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="nb">NULL</span><span class="p">,</span> <span class="n">APP_CPU_NUM</span><span class="p">);</span>
+
+    <span class="c1">// Initialize the NonVolatileStorage</span>
+    <span class="n">esp_err_t</span> <span class="n">ret</span> <span class="o">=</span> <span class="n">nvs_flash_init</span><span class="p">();</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">ret</span> <span class="o">==</span> <span class="n">ESP_ERR_NVS_NO_FREE_PAGES</span> <span class="o">||</span> <span class="n">ret</span> <span class="o">==</span> <span class="n">ESP_ERR_NVS_NEW_VERSION_FOUND</span><span class="p">)</span>
+    <span class="p">{</span>
+        <span class="n">ESP_ERROR_CHECK</span><span class="p">(</span><span class="n">nvs_flash_erase</span><span class="p">());</span>
+        <span class="n">ret</span> <span class="o">=</span> <span class="n">nvs_flash_init</span><span class="p">();</span>
+    <span class="p">}</span>
+    <span class="n">ESP_ERROR_CHECK</span><span class="p">(</span><span class="n">ret</span><span class="p">);</span>
+
+    <span class="c1">// connect to the WiFi</span>
+    <span class="n">wifi_connect_blocking</span><span class="p">(</span><span class="o">&amp;</span><span class="n">s_connect_event_group</span><span class="p">);</span>
+
+    <span class="c1">// send all incoming WeatherMessages to the MQTT topic</span>
+    <span class="n">mqtt_app_start</span><span class="p">(</span><span class="n">queue</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Free Real Time Operating System contains lots of useful primitives for dealing with concurrency, multiprocessing and synchronization</p>
+
+<h1 id="setting-up-a-mosquitto-server">Setting up a Mosquitto server</h1>
+
+<p>The last remaining part is to set up an MQTT server, which will collect messages in a topic. Those messages could then be read by one or multiple subscribers. Of course, we could go the simples way and use the hosted solution, but we will set up our own server to see how everything works internally.</p>
+
+<p>You can set up one on your machine <label for="4" class="margin-toggle sidenote-number"></label><input type="checkbox" id="4" class="margin-toggle" /><span class="sidenote">Google Compute Cloud offers and <a href="https://cloud.google.com/free/">always-free f1-micro server</a> that will be more than enough for our purposes. You can register a free domain name for it at <a href="http://freenom.com/">http://freenom.com</a>. </span>, or use a virtual private server on some cloud provider like Google Compute Cloud, AWS, Azure, Linode or DigitalOcean.</p>
+
+<p>We will use a popular and reliable <a href="http://mosquitto.org">Mosquitto</a> as an MQTT server. It is pretty simple to set up. At first, <a href="https://mosquitto.org/download/">download the software</a> or install it using a package manager. For Ubuntu, you can simply install it via:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>snap <span class="nb">install </span>mosquitto
+</code></pre></div></div>
+
+<p>After that, <a href="https://mosquitto.org/man/mosquitto_passwd-1.html">create a user</a> so we would be able to set up a password-protected server:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>mosquitto_passwd <span class="nt">-c</span> /etc/mosquitto/passwd mqttuser <span class="o">[</span>password]
+</code></pre></div></div>
+
+<p>Next, we will need to configure the server. On Ubuntu, the configuration file could be found at <code class="highlighter-rouge">/etc/mosquitto/conf.d/default.conf</code>. Open it using your favourite editor and set up the password authentication:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># disable anonymous login
+allow_anonymous false
+
+# enable password file based authentication
+password_file /etc/mosquitto/passwd
+
+# use this if you want to use unencrypted HTTP connections
+#listener 1883
+
+# use this to connect without password from localhost
+listener 1883 localhost
+
+# use this if you want to use encrypted HTTPS connections
+listener 8883
+certfile /etc/letsencrypt/live/my-site.com/cert.pem
+cafile /etc/letsencrypt/live/my-site.com/chain.pem
+keyfile /etc/letsencrypt/live/my-site.com/privkey.pem
+</code></pre></div></div>
+
+<p>In case you have a public domain name I strongly suggest setting up SSL encryption using <a href="https://letsencrypt.org">LetsEncrypt</a>. Otherwise, the passwords will be sent via an unencrypted channel that is free to sniff by anyone.</p>
+
+<p>That’s it, you can now start the broker:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>│sudo /usr/sbin/mosquitto <span class="nt">-c</span> /etc/mosquitto/mosquitto.conf <span class="nt">-v</span>
+</code></pre></div></div>
+
+<p>You can now  subscribe to the topic using a command-line client and start-up your ESP32 board:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>mosquitto_sub -p 1883 -t weather 
+
+# the -t argument sets the topic name
+</code></pre></div></div>
+
+<p>After a few moments, you should see a message from your board. Congratulations 🎉.</p>
+
+<h1 id="conclusion">Conclusion</h1>
+
+<p>In this post, we have seen how to create firmware for the ESP32 weather station and set up a Mosquitto MQTT server that will collect messages from the board.</p>
+
+<p>You can set up multiple devices and point them at different topics if you want to collect weather from multiple locations ⛅️.</p>
+
+<p>In the next post, we will build a backed that collects and stores weather data, a Telegram notification bot, and a REST API. A lot of new things to cover!</p>
+
+<p>Subscribe to the RSS feed to get notified when the next post comes out and share this one if you liked it.</p>
+
+
+<div class="share-page">
+    <div class="wow bounce">
+    <p>
+    <b class="contrast">Share this post</b><br/>
+    </p>
+    </div>
+    <a href="https://twitter.com/intent/tweet?text=Building yourself a weather station. Part 2&url=/articles/hardware/build-yourself-a-weathe-station-part-2&via=kdubovikov&related=kdubovikov" rel="nofollow" target="_blank" title="Share on Twitter"><span class="icon-twitter"></span></a>
+    <a href="https://facebook.com/sharer.php?u=/articles/hardware/build-yourself-a-weathe-station-part-2" rel="nofollow" target="_blank" title="Share on Facebook"><span class="icon-facebook2"></span></a>
+    <a href="http://www.linkedin.com/shareArticle?mini=true&url=<URL>&title=Building yourself a weather station. Part 2&summary=Building yourself a weather station. Part 2&source=/articles/hardware/build-yourself-a-weathe-station-part-2" rel="nofollow" target="_blank" title="Share on LinkedIn+"><span class="icon-linkedin"></span></a>
+    <a href="http://www.reddit.com/submit?url=/articles/hardware/build-yourself-a-weathe-station-part-2&title=Building yourself a weather station. Part 2" rel="nofollow" target="_blank" title="Share on Reddit"><span class="icon-reddit"></span></a>
+</div>
+    </article>
+    <span class="print-footer">Building yourself a weather station. Part 2 - June 20, 2020 - Kirill Dubovikov</span>
+    <footer>
+  <hr class="slender">
+  <ul class="footer-links">
+    
+      <li>
+        <a class="social-link" href="//www.twitter.com/kdubovikov">Twitter</a>
+      </li>
+    
+      <li>
+        <a class="social-link" href="//github.com/kdubovikov">GitHub</a>
+      </li>
+    
+      <li>
+        <a class="social-link" href="//linkedin.com/in/kirill-dubovikov-2a20b154/">LinkedIn</a>
+      </li>
+      
+    <li>
+      <a class="social-link" href="/feed.xml">RSS</a>
+    </li>
+  </ul>
+<div class="credits">
+<span>&copy; 2020 &nbsp;&nbsp;KIRILL DUBOVIKOV</span></br> <br>
+</div>  
+</footer>
+  </body>
+</html>

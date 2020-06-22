@@ -257,7 +257,7 @@ div.table-wrapper { overflow-x: auto; }
 
 .marginnote code, .sidenote code { font-size: 1rem; }
 
-pre, pre code, p pre code { width: 52.5%; padding-left: 2.5%; overflow-x: auto; }
+pre, pre code, p pre code { width: 87.5%; padding-left: 2.5%; overflow-x: auto; }
 
 .fullwidth, li.listing div { max-width: 90%; }
 
