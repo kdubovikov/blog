@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html>
+  <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>Async Unicorns love Rust</title>
+  <meta name="description" content="Before going on to write a backend for our weather station we first need to familiarize ourselves with a few concepts from the Rust world. If you are unfamil...">
+
+  <!-- Google Fonts loaded here depending on setting in _data/options.yml true loads font, blank does not-->
+  
+    <link href='//fonts.googleapis.com/css?family=Lato:400,400italic' rel='stylesheet' type='text/css'>
+  
+  
+  <!-- Load up MathJax script if needed ... specify in /_data/options.yml file-->
+  
+    <script type="text/javascript" src="//cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+  
+
+  <link rel="stylesheet" type="text/css" href="/css/tufte.css">
+  <!-- <link rel="stylesheet" type="text/css" href="/css/print.css" media="print"> -->
+
+  <link rel="canonical" href="/articles/rust/async-unicorns-love-rust">
+
+  <link rel="alternate" type="application/rss+xml" title="Kirill Dubovikov" href="/feed.xml" />
+  <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" >
+  <link rel="stylesheet" href="/css/animate.css" />
+
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@8.4.0/dist/mermaid.min.js"></script>
+  <script src="/scripts/wow.min.js"></script>
+  <script>
+  new WOW().init();
+  </script>
+
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=UA-166077200-1"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'UA-166077200-1');
+  </script>
+
+  <script data-name="BMC-Widget" src="https://cdnjs.buymeacoffee.com/1.0.0/widget.prod.min.js" data-id="kdubovikov" data-description="Support me" data-message="Support this blog" data-color="#D7CDCC" data-position="right" data-x_margin="40" data-y_margin="18"></script>
+</head>
+
+  <body>
+    <!--- Header and nav template site-wide -->
+<header>
+    <nav class="group">
+	<div class="head-social-links">
+	
+	
+		
+		    
+		      <a href="/css/print.css"></a>
+		    
+	    
+  	
+		
+  	
+		
+		    
+		      <a href="/feed.xml"></a>
+		    
+	    
+  	
+		
+		    
+		      <a href="/">Kirill Dubovikov</a>
+		    
+	    
+  	
+		
+		    
+		      <a href="/categories/">Categories</a>
+		    
+	    
+  	
+    
+        <a class="social-link" href="//www.twitter.com/kdubovikov"><span class="icon-twitter"/></a>
+    
+        <a class="social-link" href="//github.com/kdubovikov"><span class="icon-github"/></a>
+    
+        <a class="social-link" href="//linkedin.com/in/kirill-dubovikov-2a20b154/"><span class="icon-linkedin"/></a>
+      
+	</div>
+	</nav>
+</header>
+    <article class="group">
+      <h1 class="contrast">Async Unicorns love Rust</h1>
+<p class="subtitle">July 26, 2020</p>
+
+<p>Before going on to write a backend for our weather station we first need to familiarize ourselves with a few concepts from the Rust world. If you are unfamiliar with the language take a few minutes to read through <a href="https://learnxinyminutes.com/docs/rust/">Learn Rust in Y minutes</a> to get used to the syntax.</p>
+
+<p>When we will write a Telegram bot with Rust, we will use a technique called asynchronous programming. Let’s tackle what that means.</p>
+
+<!--more-->
+
+<p>Previous post in the series: <a href="/articles/hardware/build-yourself-a-weathe-station-part-2">Coding For ESP32</a></p>
+
+<h2 id="selling-unicorns-synchronously">Selling unicorns. Synchronously</h2>
+
+<p>Our bot will use a paradigm called asynchronous input-output, so we will need to understand what is standing behind those words. To understand this, let’s first define what we mean by synchronous input/output.</p>
+
+<p>Imagine we need to get the contents of a web page into our program. For example, let’s suppose that we want to write an app that allows users to buy unicorns using a command-line interface 🦄. Turns out that there are a lot of techies in the unicorn-lover community 👨🏻‍💻, so the investors bought in and agreed to finance the project.</p>
+
+<figure><figcaption></figcaption><img src="/assets/img/esp32-weather-station/post-3-rust-async/unicorn.jpg" /></figure>
+
+<p>We have partnered with one of the best online shops who has given us an address of the best deals page: <a href="http://unizon.com/best-deals"><code class="highlighter-rouge">http://unizon.com/best-deals</code></a>. So, we need to fetch the data from this page. The most straightforward way to do this would be to find some HTTP client library that implements low-level details of fetching the web page via HTTP protocol:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// Initialize our HTTP client library. </span>
+<span class="c">// The one we use here does not really exist, </span>
+<span class="c">// so consider the code below as pseudocode</span>
+<span class="k">let</span> <span class="n">client</span> <span class="o">=</span> <span class="nn">Client</span><span class="p">::</span><span class="nf">new</span><span class="p">();</span>
+
+<span class="c">// Get the response</span>
+<span class="k">let</span> <span class="n">resp</span> <span class="o">=</span> <span class="n">client</span><span class="nf">.get</span><span class="p">(</span><span class="s">"[http://unizon.com/best-deals](http://unizon.com/best-deals)"</span><span class="p">);</span>
+
+<span class="nd">println!</span><span class="p">(</span><span class="s">"Response: {}"</span><span class="p">,</span> <span class="n">resp</span><span class="nf">.body</span><span class="p">());</span>
+</code></pre></div></div>
+
+<p>Under the hood this code does the following:</p>
+
+<figure><figcaption></figcaption><img src="/assets/img/esp32-weather-station/post-3-rust-async/Sync_HTTP_request.svg" /></figure>
+
+<p>Here, <code class="highlighter-rouge">client.get</code> is a blocking call. This means that our main application <code class="highlighter-rouge">Buy'a'Unicorn App</code> needs to wait while lower-level components fetch the request.</p>
+
+<p>This overhead may be acceptable, but imagine that we will start making thousands of requests. Then, most of the runtime our app will wait while numbers are running back and forth over the wires.</p>
+
+<p>Now, suppose that our userbase has grown and we have decided that we need to get more partners on board. We have found a few dozen of other shops that joyfully agreed to join our platform. The functionality of our app has expanded: we now have price lists, filters, sortings, and many other exciting command-line options. This means more work inside the main app, and more requests to other 🦄 shops.</p>
+
+<p>We realize that our app does not scale anymore. The more new shops we add, the more we will need to wait for network I/O. This means we need to escape the bottleneck if we want our little unicorn business to grow.</p>
+
+<h1 id="tangling-threads">Tangling Threads</h1>
+
+<p>One way to do this would be to introduce threads. Threads are lightweight (but not free) concurrency primitives that allow you to execute parts of your appreciation in a non-blocking manner. This means that we can use them to issue multiple HTTP requests to unicorn shops in parallel and automatically update data as it is coming in.</p>
+
+<p>Before continuing, let’s first tackle what stands behind parallelism and concurrency to make things more clear. CPU at your computer har multiple mini-CPUs inside called cores. Those cores allow executing multiple low-level instructions in parallel. Multi-core execution on a 4-core CPU will allow us to execute 4 tasks independently of each other. But let’s see how many parallel processes my laptop can handle:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>ps aux | <span class="nb">wc</span> <span class="nt">-l</span>
+     875
+</code></pre></div></div>
+
+<p>That’s a lot more than 4, right? How is this possible? If you use Intel CPUs, then most of them will have a hyper-threading option available, which will separate each physical CPU core into two logical cores which can be used by your operating system.</p>
+
+<p>Doubling the core number is still not sufficient to run 875 processes, so there is more to it than hyperthreading. It turns out that most of the time applications you run wait for something: user input, hard drive, network communication. Operating systems leverage this fact to fake parallelization by introducing a thing called concurrent execution.</p>
+
+<figure><figcaption></figcaption><img src="/assets/img/esp32-weather-station/post-3-rust-async/concurrency.jpg" /></figure>
+
+<p>Two processes are executing concurrently if they can execute in overlapping periods of time. However, it does not mean that they execute their instructions at the same time. For example, one concurrent process can pause and let the other run. And when two processes execute their instructions simultaneously they are called to be run in parallel.</p>
+
+<p>Operating systems provide complicated schedulers that automatically control which processes execute in parallel, which concurrently and how exactly they should switch between each other. In practice, concurrent execution happens so fast that for us it looks like all of the processes are running in parallel.</p>
+
+<p>Next, let’s clarify the difference between two related concepts: <strong>processes</strong> and <strong>threads</strong>.</p>
+
+<p>The process represents an executing program in an operating system. Each process is completely isolated from other processes. The only way one process can communicate to another is by utilizing some external shared resources. For example, a file system, or a database server. Due to their properties, processes have some overhead. Creating and maintaining processes takes time, and switching between them requires work too.</p>
+
+<figure><figcaption></figcaption><img src="/assets/img/esp32-weather-station/post-3-rust-async/Process_communication.svg" /></figure>
+
+<p>Let’s look at how we can use processes in Rust:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="nn">process</span><span class="p">::</span><span class="n">Command</span><span class="p">;</span>
+
+<span class="c">// execute echo command and save it's output to the variable</span>
+<span class="k">let</span> <span class="n">output</span> <span class="o">=</span> <span class="nn">Command</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="s">"echo"</span><span class="p">)</span>
+                     <span class="nf">.arg</span><span class="p">(</span><span class="s">"Hello world"</span><span class="p">)</span>
+                     <span class="nf">.output</span><span class="p">()</span>
+                     <span class="nf">.expect</span><span class="p">(</span><span class="s">"Failed to execute command"</span><span class="p">);</span>
+<span class="nd">assert_eq!</span><span class="p">(</span><span class="n">b</span><span class="s">"Hello world</span><span class="se">\n</span><span class="s">"</span><span class="p">,</span> <span class="n">output</span><span class="py">.stdout</span><span class="nf">.as_slice</span><span class="p">());</span>
+
+<span class="c">// in this way, we coult fetch data using external applications</span>
+<span class="k">let</span> <span class="n">response</span> <span class="o">=</span> <span class="nn">Command</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="s">"curl"</span><span class="p">)</span>
+                     <span class="nf">.arg</span><span class="p">(</span><span class="s">"http://unicorn.shop/store/items"</span><span class="p">)</span>
+                     <span class="nf">.output</span><span class="p">()</span>
+                     <span class="nf">.expect</span><span class="p">(</span><span class="s">"Failed to execute command"</span><span class="p">);</span>
+
+</code></pre></div></div>
+
+<p>If our unicorn shop app needs to communicate with tens or hundreds of different shops, then processes might solve our issue. However, if we will scale to thousands of shops (for which I have absolutely no doubt), then processes will start to feel show and sluggish.</p>
+
+<p>The more lightweight concept of threads comes to our rescue. Think of them as a set of lightweight mini-processes inside your large process. Threads are much faster to create and destroy. Also, they share memory access, so you won’t need to use expensive I/O-based communication protocols just to share information inside your own application. Howewer, all this power comes with a grain of salt.</p>
+
+<figure><figcaption></figcaption><img src="/assets/img/esp32-weather-station/post-3-rust-async/salt-mine.jpg" /></figure>
+
+<p>Shared memory access complicates the programmer’s job by a lot. It introduces notoriously hard to debug problems such as data races and deadlocks. Thankfully, Rust takes away most of that pain. The borrow checker introduces strict mutability control that allows the Rust compiler to ensure that two different threads do not share simultaneous access to a single variable. Of course, there are ways to circumvent this, but it takes a lot of conscious effort to break through Rust’s safety net. Let’s see how we can manipulate threads in Rust:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="n">thread</span><span class="p">;</span>
+<span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="nn">sync</span><span class="p">::</span><span class="nn">mpsc</span><span class="p">::</span><span class="n">channel</span><span class="p">;</span>
+
+<span class="c">// MPSC stands for Multiple Producer Single consumer.</span>
+<span class="c">// Channels are a useful abrtsaction for communication between threads:</span>
+<span class="c">// tx allows multiple producers to send data over the channel,</span>
+<span class="c">// rx allows a single consumer to recieve the data from producers.</span>
+<span class="c">// In our case, tx will be used by multiple threads to send responses to our reciever thread</span>
+<span class="k">let</span> <span class="p">(</span><span class="n">tx</span><span class="p">,</span> <span class="n">rx</span><span class="p">)</span> <span class="o">=</span> <span class="nf">channel</span><span class="p">();</span>
+
+<span class="k">let</span> <span class="n">sender</span> <span class="o">=</span> <span class="nn">thread</span><span class="p">::</span><span class="nf">spawn</span><span class="p">(</span><span class="k">move</span> <span class="p">||</span> <span class="p">{</span>
+		<span class="c">// We will use an imaginary API for sendind HTTP GET requests for simplification</span>
+		<span class="k">let</span> <span class="n">response</span> <span class="o">=</span> <span class="nf">get_http_response</span><span class="p">(</span><span class="nn">String</span><span class="p">::</span><span class="nf">from</span><span class="p">(</span><span class="s">"http://unicorn.shop/store/items"</span><span class="p">))</span>
+    <span class="n">tx</span><span class="nf">.send</span><span class="p">(</span><span class="n">response</span><span class="p">)</span>
+        <span class="nf">.expect</span><span class="p">(</span><span class="s">"Unable to send on channel"</span><span class="p">);</span>
+<span class="p">});</span>
+
+<span class="k">let</span> <span class="n">receiver</span> <span class="o">=</span> <span class="nn">thread</span><span class="p">::</span><span class="nf">spawn</span><span class="p">(</span><span class="k">move</span> <span class="p">||</span> <span class="p">{</span>
+    <span class="k">let</span> <span class="n">value</span> <span class="o">=</span> <span class="n">rx</span><span class="nf">.recv</span><span class="p">()</span><span class="nf">.expect</span><span class="p">(</span><span class="s">"Unable to receive from channel"</span><span class="p">);</span>
+    <span class="nd">println!</span><span class="p">(</span><span class="s">"{}"</span><span class="p">,</span> <span class="n">value</span><span class="p">);</span>
+<span class="p">});</span>
+
+<span class="n">sender</span><span class="nf">.join</span><span class="p">()</span><span class="nf">.expect</span><span class="p">(</span><span class="s">"The sender thread has panicked"</span><span class="p">);</span>
+<span class="n">receiver</span><span class="nf">.join</span><span class="p">()</span><span class="nf">.expect</span><span class="p">(</span><span class="s">"The receiver thread has panicked"</span><span class="p">);</span>
+</code></pre></div></div>
+
+<p>Creating a thread each time we need to perform can still be costly, so we can introduce another useful tool: a thread pool. Thread pool herds a number of threads and gives you a free one each time you need it:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// Rust standard library does not provide a thread pool implementation,</span>
+<span class="c">// so we will a `threadpool` crate.</span>
+<span class="c">// https://docs.rs/threadpool/1.8.1/threadpool/</span>
+
+<span class="k">use</span> <span class="nn">threadpool</span><span class="p">::</span><span class="n">ThreadPool</span><span class="p">;</span>
+<span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="nn">sync</span><span class="p">::</span><span class="nn">mpsc</span><span class="p">::</span><span class="n">channel</span><span class="p">;</span>
+
+<span class="c">// Create a thread pool with 4 worker threads ready to handle our requests</span>
+<span class="k">let</span> <span class="n">n_workers</span> <span class="o">=</span> <span class="mi">4</span><span class="p">;</span>
+<span class="k">let</span> <span class="n">pool</span> <span class="o">=</span> <span class="nn">ThreadPool</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="n">n_workers</span><span class="p">);</span>
+
+<span class="c">// Our shop URLs</span>
+<span class="k">let</span> <span class="n">shops</span> <span class="o">=</span> <span class="nd">vec!</span><span class="p">[</span><span class="nn">String</span><span class="p">::</span><span class="nf">from</span><span class="p">(</span><span class="s">"http://unicorn.shop/store/items"</span><span class="p">),</span> 
+								 <span class="nn">String</span><span class="p">::</span><span class="nf">from</span><span class="p">(</span><span class="s">"http://all-unicorns.ml/inventory"</span><span class="p">)];</span>
+
+<span class="c">// Issue each request in a thread pool.</span>
+<span class="c">// The for loop won't block on `pool.execute` call</span>
+<span class="k">let</span> <span class="p">(</span><span class="n">tx</span><span class="p">,</span> <span class="n">rx</span><span class="p">)</span> <span class="o">=</span> <span class="nf">channel</span><span class="p">();</span>
+<span class="k">for</span> <span class="n">shop_url</span> <span class="n">in</span> <span class="n">shops</span><span class="nf">.iter</span><span class="p">()</span> <span class="p">{</span>
+    <span class="k">let</span> <span class="n">tx</span> <span class="o">=</span> <span class="n">tx</span><span class="nf">.clone</span><span class="p">();</span>
+    <span class="n">pool</span><span class="nf">.execute</span><span class="p">(</span><span class="k">move</span><span class="p">||</span> <span class="p">{</span>
+				<span class="c">// Again, using our fictionary API to send requests to</span>
+				<span class="c">// imaginary unicorn shops :)</span>
+				<span class="k">let</span> <span class="n">response</span> <span class="o">=</span> <span class="nf">get_http_response</span><span class="p">(</span><span class="n">shop_url</span><span class="p">)</span>
+        <span class="n">tx</span><span class="nf">.send</span><span class="p">(</span><span class="n">response</span><span class="p">)</span><span class="nf">.expect</span><span class="p">(</span><span class="s">"channel will be there waiting for the pool"</span><span class="p">);</span>
+    <span class="p">});</span>
+<span class="p">}</span>
+
+<span class="c">// We can do other stuff without waiting for responses</span>
+<span class="nf">some_important_work_to_do</span><span class="p">();</span>
+
+<span class="c">// Here, the loop will print request in the order </span>
+<span class="c">// they arrive from the shop servers</span>
+<span class="k">while</span> <span class="k">let</span> <span class="nf">Some</span><span class="p">(</span><span class="n">response</span><span class="p">)</span> <span class="o">=</span> <span class="n">rx</span><span class="nf">.iter</span><span class="p">()</span> <span class="p">{</span>
+	<span class="nd">println!</span><span class="p">(</span><span class="s">"{}"</span><span class="p">,</span> <span class="n">response</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Now that you know how to use threads, let’s fast-forward our unicorn business for a few years. We are still growing, and now almost all shops are integrated into our platform. Someday, unicorn appliances and care products sellers got interested in providing co-sell options so that you won’t only buy a unicorn, but a fully packed experience with the best saddle and latest horn care shampoo on the market.</p>
+
+<p>All this means that we will have a great expansion of our service, and a lot more HTTP requests to do. Also, our application starts to become more complex. New additions to the business logic  incroduce lots of buds and are slower to implement. The threading backend that we use won’t keep up with the job anymore.</p>
+
+<h1 id="async-to-the-rescue">Async to the rescue</h1>
+
+<p>To solve our problems, we must shift the paradigm. Up to this point, we thought about our application in two parts: the main thread that handles all of the application logic and several worker threads in a thread pool that handles networking I/O for us.</p>
+
+<p>But why do we need to switch threads in the first place? Why code in our main thread can’t continue executing while some other part of the application is waiting for an I/O? In fact, every major operating system provides an API to handle off the I/O work to the OS kernel and receive notifications when data is available for reading.</p>
+
+<p>This functionality can be leveraged to avoid blocking on the I/O code in a single thread: if your application encounters an I/O call it can continue executing other tasks while waiting for the data to become available <label for="1" class="margin-toggle sidenote-number"></label><input type="checkbox" id="1" class="margin-toggle" /><span class="sidenote">In Linux, this functionality is available via <code class="highlighter-rouge">epoll</code> API </span>. In reality, this turns out to be a fairly complex task that can be implemented with the event loop architecture pattern.</p>
+
+<figure><figcaption></figcaption><img src="/assets/img/esp32-weather-station/post-3-rust-async/Event_loop.svg" /></figure>
+
+<p>As you can see, the event loop operates by observing events and executing tasks. A task can be thought of as an abstraction over a block of code. The event loop works by observing I/O events from the operating system and executing tasks that read or write data.</p>
+
+<p>This model introduces a significant drawback compared to the traditional approach: the event loop runs in a single thread. This means that if our tasks contain anything but I/O operations their execution will block the entire event loop. That leads to a conclusion: if your application uses a lot of I/O requests, it will get a big performance boost from using the event loop approach. However, if it is CPU-heavy and uses lots of computational resources it will block the event loop too much for it to provide any benefit. Modern asynchronous libraries provide a way to fight this by providing additional thread pool which can be used to execute blocking tasks without stopping the event loop.</p>
+
+<p>Another important part of the solution is the asynchronous programming paradigm. Modern programming languages simplify working with asynchronous code by providing special syntax constructs. For example, Rust allows us to define <code class="highlighter-rouge">async</code> closures and functions.</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// `block_on` blocks the current thread until the provided future has run to</span>
+<span class="c">// completion. Other executors provide more complex behavior, like scheduling</span>
+<span class="c">// multiple futures onto the same thread.</span>
+<span class="k">use</span> <span class="nn">futures</span><span class="p">::</span><span class="nn">executor</span><span class="p">::</span><span class="n">block_on</span><span class="p">;</span>
+
+<span class="k">async</span> <span class="k">fn</span> <span class="nf">hello_world</span><span class="p">()</span> <span class="p">{</span>
+    <span class="nd">println!</span><span class="p">(</span><span class="s">"hello, world!"</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="k">fn</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="k">let</span> <span class="n">future</span> <span class="o">=</span> <span class="nf">hello_world</span><span class="p">();</span> <span class="c">// Nothing is printed</span>
+    <span class="nf">block_on</span><span class="p">(</span><span class="n">future</span><span class="p">);</span> <span class="c">// `future` is run and "hello, world!" is printed</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>The above example is from from the <a href="https://rust-lang.github.io/async-book/01_getting_started/04_async_await_primer.html">Asynchronous Programming In Rust</a>. I suggest reading the book for a more in-depth intro into async Rust</p>
+
+<p>Each asynchronous function returns a <code class="highlighter-rouge">Future</code>, a special construct that designates a result, which will be returned sometime in the future. Notice that the <code class="highlighter-rouge">hello_world</code> function will not be executed until we <code class="highlighter-rouge">block_on</code> the future.</p>
+
+<p>In practice, we will work with a <a href="https://docs.rs/tokio/">tokio</a> crate, which implements the event loop pattern and wraps <code class="highlighter-rouge">mio</code> library that uses the underlying operating system’s asynchronous I/O implementatein and wraps it in a convenient interface. Another important library we will use in the ESP weather station project is <a href="https://tbot.rs">tbot</a>, a Telegram bot library built on top of <code class="highlighter-rouge">tokio</code>. Let’s look at how to build a simple bot with it:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">use</span> <span class="nn">tbot</span><span class="p">::</span><span class="nn">prelude</span><span class="p">::</span><span class="o">*</span><span class="p">;</span>
+<span class="k">use</span> <span class="nn">tokio</span><span class="p">::</span><span class="nn">sync</span><span class="p">::</span><span class="n">Mutex</span><span class="p">;</span>
+
+<span class="nd">#[tokio::main]</span>
+<span class="k">async</span> <span class="k">fn</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+	<span class="c">// We create the bot's event lool by using token from the environment variable BOT_TOKEN</span>
+  <span class="k">let</span> <span class="k">mut</span> <span class="n">bot</span> <span class="o">=</span> <span class="nn">tbot</span><span class="p">::</span><span class="nd">from_env!</span><span class="p">(</span><span class="s">"BOT_TOKEN"</span><span class="p">)</span>
+    <span class="nf">.event_loop</span><span class="p">();</span>
+
+	<span class="c">// next, we register a command which greets the user with a predefinend message</span>
+  <span class="n">bot</span><span class="nf">.command</span><span class="p">(</span><span class="s">"say_hi"</span><span class="p">,</span> <span class="p">|</span><span class="n">context</span><span class="p">|</span> <span class="p">{</span>
+
+		<span class="c">// this construct allows us to move variables from the enclosing environment into</span>
+    <span class="c">// the closure below</span>
+    <span class="k">async</span> <span class="k">move</span> <span class="p">{</span>
+      <span class="k">let</span> <span class="n">message</span> <span class="o">=</span> <span class="nn">String</span><span class="p">::</span><span class="nf">from</span><span class="p">(</span><span class="s">"Hi there!"</span><span class="p">);</span>
+			
+			<span class="c">// finally, we issue a blocking call that sends the message back to the user</span>
+			<span class="c">// await.unwrap() allows us to force the execution of a send_message API call</span>
+			<span class="c">// without it, nothing would happen</span>
+      <span class="n">context</span>
+        <span class="nf">.send_message</span><span class="p">(</span><span class="o">&amp;</span><span class="n">message</span><span class="p">)</span>
+        <span class="nf">.call</span><span class="p">()</span>
+        <span class="py">.await</span>
+        <span class="nf">.unwrap</span><span class="p">();</span>
+    <span class="p">}</span>
+  <span class="p">});</span>
+	
+	<span class="c">// here, we start the Telegram API poller which will periodically ask the server about new events</span>
+  <span class="c">// such as incoming messages</span>
+  <span class="n">bot</span><span class="nf">.polling</span><span class="p">()</span><span class="nf">.start</span><span class="p">()</span><span class="py">.await</span><span class="nf">.unwrap</span><span class="p">();</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Notice the <code class="highlighter-rouge">#[tokio::main]</code> macro. According to the documentation, it “marks async function to be executed by selected runtime”. By runtime we mean the underlying implementation of tokio’s scheduler that executes tasks. As defined in the framework’s documentation, the runtime consists of the following components:</p>
+
+<ul>
+  <li>An I/O event loop, called the driver, which drives I/O resources and dispatches I/O events to tasks that depend on them.</li>
+  <li>A scheduler to execute tasks that use these I/O resources.</li>
+  <li>A timer for scheduling work to run after a set period of time.</li>
+</ul>
+
+<h1 id="wrapping-up">Wrapping up</h1>
+
+<p>Now, we can scale our small unicorn shop to be a global bot-powered marketplace where buyers and sellers can satisfy their unicorn needs 24/7, worldwide by using an asynchronous programming model. Apart from that, that’s all we needed to cover to start developing a chat bot for our weather station.</p>
+
+<p>We have looked at three ways of dealing with I/O in our application:</p>
+
+<ol>
+  <li>Synchronous I/O, where everything happens in the same thread</li>
+  <li>Threaded I/O, where we offload I/O work to a different thread by paying a cost of creating threads and switching between them</li>
+  <li>Asynchronous I/O, where we use the event loop pattern to offload the I/O work to the operating system and receive notifications via special APIs such as linux’s <code class="highlighter-rouge">epoll</code> when our I/O requests are done</li>
+</ol>
+
+<p>While providing extremely fast I/O, asynchronous paradigm is not without its drawbacks:</p>
+
+<ul>
+  <li>It is harder to read, write and maintain async coode</li>
+  <li>Async I/O benefits diminish with the amount of CPU-heavy computations you need to make</li>
+</ul>
+
+<p>In the next post, we will be looking at how to build a Telegram bot for our weather station using Rust as a programming language, Tokio as an async I/O library and tbot as a Telegram bot framework.</p>
+
+
+<div class="share-page">
+    <div class="wow bounce">
+    <p>
+    <b class="contrast">Share this post</b><br/>
+    </p>
+    </div>
+    <a href="https://twitter.com/intent/tweet?text=Async Unicorns love Rust&url=/articles/rust/async-unicorns-love-rust&via=kdubovikov&related=kdubovikov" rel="nofollow" target="_blank" title="Share on Twitter"><span class="icon-twitter"></span></a>
+    <a href="https://facebook.com/sharer.php?u=/articles/rust/async-unicorns-love-rust" rel="nofollow" target="_blank" title="Share on Facebook"><span class="icon-facebook2"></span></a>
+    <a href="http://www.linkedin.com/shareArticle?mini=true&url=<URL>&title=Async Unicorns love Rust&summary=Async Unicorns love Rust&source=/articles/rust/async-unicorns-love-rust" rel="nofollow" target="_blank" title="Share on LinkedIn+"><span class="icon-linkedin"></span></a>
+    <a href="http://www.reddit.com/submit?url=/articles/rust/async-unicorns-love-rust&title=Async Unicorns love Rust" rel="nofollow" target="_blank" title="Share on Reddit"><span class="icon-reddit"></span></a>
+</div>
+    </article>
+    <span class="print-footer">Async Unicorns love Rust - July 26, 2020 - Kirill Dubovikov</span>
+    <footer>
+  <hr class="slender">
+  <ul class="footer-links">
+    
+      <li>
+        <a class="social-link" href="//www.twitter.com/kdubovikov">Twitter</a>
+      </li>
+    
+      <li>
+        <a class="social-link" href="//github.com/kdubovikov">GitHub</a>
+      </li>
+    
+      <li>
+        <a class="social-link" href="//linkedin.com/in/kirill-dubovikov-2a20b154/">LinkedIn</a>
+      </li>
+      
+    <li>
+      <a class="social-link" href="/feed.xml">RSS</a>
+    </li>
+  </ul>
+<div class="credits">
+<span>&copy; 2020 &nbsp;&nbsp;KIRILL DUBOVIKOV</span></br> <br>
+</div>  
+</footer>
+  </body>
+</html>

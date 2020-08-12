@@ -11,6 +11,8 @@ In the [previous post](https://blog.kdubovikov.ml/articles/hardware/build-yourse
 
 <!--more-->
 
+Previous post in series: [Building a weather station]({% post_url 2020-06-13-build-yourself-a-weather-station %})
+
 This firmware should read the data from BME280 and publish it to the MQTT topic. For ESP32 we have two options: using the Arduino framework or ESP-IDF. While Arduino is extremely popular and easy to use, I have decided to go with ESP-IDF for the following reasons:
 
 - Although lower level, it gives you more control over the chip
@@ -525,3 +527,5 @@ You can set up multiple devices and point them at different topics if you want t
 In the next post, we will build a backed that collects and stores weather data, a Telegram notification bot, and a REST API. A lot of new things to cover! 
 
 Subscribe to the RSS feed to get notified when the next post comes out and share this one if you liked it.
+
+Next post in the series: [Async Unicorns love Rust]({% post_url 2020-07-27-async-unicorns-love-rust %})

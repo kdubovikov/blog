@@ -116,3 +116,5 @@ The following one or more frames are **data frames**, which also contain 8 bis o
 At this point, we have outlined out architecture and tech stack, chose and wired up the hardware and got into how integrated circuits can communicate between each other using two wires and I2C protocol.
 
 In the next post we will harness the power of ESP32 by writing a firmware which will collect data from BME280 and send it to our MQTT server via wireless network. Subscribe to the RSS feed to get notified when the next post comes out.
+
+Next post in the series: [Coding For ESP32]({% post_url 2020-06-21-build-yourself-a-weathe-station-part-2 %})

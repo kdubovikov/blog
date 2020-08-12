@@ -13,6 +13,10 @@ excerpt_separator: <!--more-->  # you can specify your own separator, of course.
 exclude: ['Gemfile', 'Gemfile.lock', 'Rakefile', 'UploadToGithub.Rakefile', 'README.md']
 destination: 'docs'
 keep_files: ['CNAME']
+plugins:
+  - jekyll-feed
+feed:
+  excerpt_only: true
 post:
   template: _post.txt
   extension: md

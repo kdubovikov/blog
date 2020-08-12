@@ -54,14 +54,18 @@
 	
 	
 		
-  	
-		
 		    
 		      <a href="/css/print.css"></a>
 		    
 	    
   	
 		
+  	
+		
+		    
+		      <a href="/feed.xml"></a>
+		    
+	    
   	
 		
 		    
@@ -94,6 +98,8 @@
 <p>In the <a href="https://blog.kdubovikov.ml/articles/hardware/build-yourself-a-weather-station">previous post</a>, we have covered the hardware setup for building a weather station. Starting from now, we will start coding. The first missing piece is the firmware for ESP32.</p>
 
 <!--more-->
+
+<p>Previous post in series: <a href="/articles/hardware/build-yourself-a-weather-station">Building a weather station</a></p>
 
 <p>This firmware should read the data from BME280 and publish it to the MQTT topic. For ESP32 we have two options: using the Arduino framework or ESP-IDF. While Arduino is extremely popular and easy to use, I have decided to go with ESP-IDF for the following reasons:</p>
 
@@ -598,6 +604,8 @@ keyfile /etc/letsencrypt/live/my-site.com/privkey.pem
 <p>In the next post, we will build a backed that collects and stores weather data, a Telegram notification bot, and a REST API. A lot of new things to cover!</p>
 
 <p>Subscribe to the RSS feed to get notified when the next post comes out and share this one if you liked it.</p>
+
+<p>Next post in the series: <a href="/articles/rust/async-unicorns-love-rust">Async Unicorns love Rust</a></p>
 
 
 <div class="share-page">
