@@ -27,8 +27,6 @@ We will also use a library called [rumq-client](https://docs.rs/rumq-client/0.1.
 
 We will package our bot as a command-line application which supports file-based configuration. Packages like clap and settings will help us to quickly implement config files and parsing command line arguments.
 
-- [ ]  Architecture diagram
-
 ## Designing a database
 
 First, let's look at `[schema.rs](http://schema.rs)` file which contain's our database table definitions. Based on this metadata diesel will be able to generate SQL migrations that create the tables in our DB, so we do not need to do this by hand. Those definitions also will be used by diesel to automatically create queries to the DB.

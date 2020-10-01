@@ -171,7 +171,7 @@
                      <span class="nf">.expect</span><span class="p">(</span><span class="s">"Failed to execute command"</span><span class="p">);</span>
 <span class="nd">assert_eq!</span><span class="p">(</span><span class="n">b</span><span class="s">"Hello world</span><span class="se">\n</span><span class="s">"</span><span class="p">,</span> <span class="n">output</span><span class="py">.stdout</span><span class="nf">.as_slice</span><span class="p">());</span>
 
-<span class="c">// in this way, we coult fetch data using external applications</span>
+<span class="c">// in this way, we could fetch data using external applications</span>
 <span class="k">let</span> <span class="n">response</span> <span class="o">=</span> <span class="nn">Command</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="s">"curl"</span><span class="p">)</span>
                      <span class="nf">.arg</span><span class="p">(</span><span class="s">"http://unicorn.shop/store/items"</span><span class="p">)</span>
                      <span class="nf">.output</span><span class="p">()</span>
@@ -191,14 +191,14 @@
 <span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="nn">sync</span><span class="p">::</span><span class="nn">mpsc</span><span class="p">::</span><span class="n">channel</span><span class="p">;</span>
 
 <span class="c">// MPSC stands for Multiple Producer Single consumer.</span>
-<span class="c">// Channels are a useful abrtsaction for communication between threads:</span>
-<span class="c">// tx allows multiple producers to send data over the channel,</span>
-<span class="c">// rx allows a single consumer to recieve the data from producers.</span>
+<span class="c">// Channels are a useful abstraction for communication between threads:</span>
+<span class="c">// tx (transmitter) allows multiple producers to send data over the channel,</span>
+<span class="c">// rx (receiver) allows a single consumer to recieve the data from producers.</span>
 <span class="c">// In our case, tx will be used by multiple threads to send responses to our reciever thread</span>
 <span class="k">let</span> <span class="p">(</span><span class="n">tx</span><span class="p">,</span> <span class="n">rx</span><span class="p">)</span> <span class="o">=</span> <span class="nf">channel</span><span class="p">();</span>
 
 <span class="k">let</span> <span class="n">sender</span> <span class="o">=</span> <span class="nn">thread</span><span class="p">::</span><span class="nf">spawn</span><span class="p">(</span><span class="k">move</span> <span class="p">||</span> <span class="p">{</span>
-		<span class="c">// We will use an imaginary API for sendind HTTP GET requests for simplification</span>
+		<span class="c">// We will use an imaginary API for sending HTTP GET requests for simplification</span>
 		<span class="k">let</span> <span class="n">response</span> <span class="o">=</span> <span class="nf">get_http_response</span><span class="p">(</span><span class="nn">String</span><span class="p">::</span><span class="nf">from</span><span class="p">(</span><span class="s">"http://unicorn.shop/store/items"</span><span class="p">))</span>
     <span class="n">tx</span><span class="nf">.send</span><span class="p">(</span><span class="n">response</span><span class="p">)</span>
         <span class="nf">.expect</span><span class="p">(</span><span class="s">"Unable to send on channel"</span><span class="p">);</span>
@@ -255,7 +255,7 @@
 
 <p>Now that you know how to use threads, let’s fast-forward our unicorn business for a few years. We are still growing, and now almost all shops are integrated into our platform. Someday, unicorn appliances and care products sellers got interested in providing co-sell options so that you won’t only buy a unicorn, but a fully packed experience with the best saddle and latest horn care shampoo on the market.</p>
 
-<p>All this means that we will have a great expansion of our service, and a lot more HTTP requests to do. Also, our application starts to become more complex. New additions to the business logic  incroduce lots of buds and are slower to implement. The threading backend that we use won’t keep up with the job anymore.</p>
+<p>All this means that we will have a great expansion of our service, and a lot more HTTP requests to do. Also, our application starts to become more complex. New additions to the business logic  introduce lots of buds and are slower to implement. The threading backend that we use won’t keep up with the job anymore.</p>
 
 <h1 id="async-to-the-rescue">Async to the rescue</h1>
 
@@ -269,7 +269,7 @@
 
 <p>As you can see, the event loop operates by observing events and executing tasks. A task can be thought of as an abstraction over a block of code. The event loop works by observing I/O events from the operating system and executing tasks that read or write data.</p>
 
-<p>This model introduces a significant drawback compared to the traditional approach: the event loop runs in a single thread. This means that if our tasks contain anything but I/O operations their execution will block the entire event loop. That leads to a conclusion: if your application uses a lot of I/O requests, it will get a big performance boost from using the event loop approach. However, if it is CPU-heavy and uses lots of computational resources it will block the event loop too much for it to provide any benefit. Modern asynchronous libraries provide a way to fight this by providing additional thread pool which can be used to execute blocking tasks without stopping the event loop.</p>
+<p>This model introduces a significant drawback compared to the traditional approach: the event loop runs in a single thread. This means that if our tasks contain anything but I/O operations their execution will block the entire event loop. That leads to a conclusion: if your application uses a lot of I/O requests, it will get a big performance boost from using the event loop approach. However, if it is CPU-heavy and uses lots of computational resources, it will block the event loop too much for it to provide any benefit. Modern asynchronous libraries provide a way to fight this by providing additional thread pool which can be used to execute blocking tasks without stopping the event loop.</p>
 
 <p>Another important part of the solution is the asynchronous programming paradigm. Modern programming languages simplify working with asynchronous code by providing special syntax constructs. For example, Rust allows us to define <code class="highlighter-rouge">async</code> closures and functions.</p>
 
@@ -288,7 +288,7 @@
 <span class="p">}</span>
 </code></pre></div></div>
 
-<p>The above example is from from the <a href="https://rust-lang.github.io/async-book/01_getting_started/04_async_await_primer.html">Asynchronous Programming In Rust</a>. I suggest reading the book for a more in-depth intro into async Rust</p>
+<p>The above example is from from the <a href="https://rust-lang.github.io/async-book/01_getting_started/04_async_await_primer.html">Asynchronous Programming In Rust</a>. I suggest reading the book for a more in-depth intro into async Rust.</p>
 
 <p>Each asynchronous function returns a <code class="highlighter-rouge">Future</code>, a special construct that designates a result, which will be returned sometime in the future. Notice that the <code class="highlighter-rouge">hello_world</code> function will not be executed until we <code class="highlighter-rouge">block_on</code> the future.</p>
 
@@ -299,7 +299,7 @@
 
 <span class="nd">#[tokio::main]</span>
 <span class="k">async</span> <span class="k">fn</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
-	<span class="c">// We create the bot's event lool by using token from the environment variable BOT_TOKEN</span>
+	<span class="c">// We create the bot's event loop by using token from the environment variable BOT_TOKEN</span>
   <span class="k">let</span> <span class="k">mut</span> <span class="n">bot</span> <span class="o">=</span> <span class="nn">tbot</span><span class="p">::</span><span class="nd">from_env!</span><span class="p">(</span><span class="s">"BOT_TOKEN"</span><span class="p">)</span>
     <span class="nf">.event_loop</span><span class="p">();</span>
 
@@ -311,8 +311,8 @@
     <span class="k">async</span> <span class="k">move</span> <span class="p">{</span>
       <span class="k">let</span> <span class="n">message</span> <span class="o">=</span> <span class="nn">String</span><span class="p">::</span><span class="nf">from</span><span class="p">(</span><span class="s">"Hi there!"</span><span class="p">);</span>
 			
-			<span class="c">// finally, we issue a blocking call that sends the message back to the user</span>
-			<span class="c">// await.unwrap() allows us to force the execution of a send_message API call</span>
+			<span class="c">// finally, we issue a blocking call that sends the message back to the user.</span>
+			<span class="c">// await.unwrap() allows us to force the execution of a send_message API call.</span>
 			<span class="c">// without it, nothing would happen</span>
       <span class="n">context</span>
         <span class="nf">.send_message</span><span class="p">(</span><span class="o">&amp;</span><span class="n">message</span><span class="p">)</span>
