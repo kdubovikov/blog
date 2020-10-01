@@ -270,4 +270,4 @@ While providing extremely fast I/O, asynchronous paradigm is not without its dra
 - It is harder to read, write and maintain async coode
 - Async I/O benefits diminish with the amount of CPU-heavy computations you need to make
 
-In the next post, we will be looking at how to build a Telegram bot for our weather station using Rust as a programming language, Tokio as an async I/O library and tbot as a Telegram bot framework.
+In the [next post](https://blog.kdubovikov.ml/articles/rust/building-a-weather-station-bot), we will be looking at how to build a Telegram bot for our weather station using Rust as a programming language, Tokio as an async I/O library and tbot as a Telegram bot framework.

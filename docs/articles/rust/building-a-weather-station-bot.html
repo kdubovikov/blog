@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html>
+  <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>Building a Weather Station Bot</title>
+  <meta name="description" content="In this post we are going to switch from hardware to software and write a telegram bot that will be the primary user interface for our weather station.">
+
+  <!-- Google Fonts loaded here depending on setting in _data/options.yml true loads font, blank does not-->
+  
+    <link href='//fonts.googleapis.com/css?family=Lato:400,400italic' rel='stylesheet' type='text/css'>
+  
+  
+  <!-- Load up MathJax script if needed ... specify in /_data/options.yml file-->
+  
+    <script type="text/javascript" src="//cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+  
+
+  <link rel="stylesheet" type="text/css" href="/css/tufte.css">
+  <!-- <link rel="stylesheet" type="text/css" href="/css/print.css" media="print"> -->
+
+  <link rel="canonical" href="/articles/rust/building-a-weather-station-bot">
+
+  <link rel="alternate" type="application/rss+xml" title="Kirill Dubovikov" href="/feed.xml" />
+  <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" >
+  <link rel="stylesheet" href="/css/animate.css" />
+
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@8.4.0/dist/mermaid.min.js"></script>
+  <script src="/scripts/wow.min.js"></script>
+  <script>
+  new WOW().init();
+  </script>
+
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=UA-166077200-1"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'UA-166077200-1');
+  </script>
+
+  <script data-name="BMC-Widget" src="https://cdnjs.buymeacoffee.com/1.0.0/widget.prod.min.js" data-id="kdubovikov" data-description="Support me" data-message="Support this blog" data-color="#D7CDCC" data-position="right" data-x_margin="40" data-y_margin="18"></script>
+</head>
+
+  <body>
+    <!--- Header and nav template site-wide -->
+<header>
+    <nav class="group">
+	<div class="head-social-links">
+	
+	
+		
+		    
+		      <a href="/css/print.css"></a>
+		    
+	    
+  	
+		
+  	
+		
+		    
+		      <a href="/feed.xml"></a>
+		    
+	    
+  	
+		
+		    
+		      <a href="/">Kirill Dubovikov</a>
+		    
+	    
+  	
+		
+		    
+		      <a href="/categories/">Categories</a>
+		    
+	    
+  	
+    
+        <a class="social-link" href="//www.twitter.com/kdubovikov"><span class="icon-twitter"/></a>
+    
+        <a class="social-link" href="//github.com/kdubovikov"><span class="icon-github"/></a>
+    
+        <a class="social-link" href="//linkedin.com/in/kirill-dubovikov-2a20b154/"><span class="icon-linkedin"/></a>
+      
+	</div>
+	</nav>
+</header>
+    <article class="group">
+      <h1 class="contrast">Building a Weather Station Bot</h1>
+<p class="subtitle">September 18, 2020</p>
+
+<p>In this post we are going to switch from hardware to software and write a telegram bot that will be the primary user interface for our weather station.
+<!--more--></p>
+
+<h1 id="writing-a-weather-station-bot">Writing a Weather Station Bot</h1>
+<p>In the <a href="https://blog.kdubovikov.ml/articles/rust/async-unicorns-love-rust">previous post</a> we have covered the basics of the asynchronous programming in Rust, which will allow us to write a telegram bot that reads measurements from MQTT server and send notification messages to Telegram. The complete source code for this post is hosted in a GitHub repository.</p>
+
+<p>This project will use a few libraries which will greatly simplify our work:</p>
+
+<ul>
+  <li><a href="http://diesel.rs">Diesel ORM</a> Framework that will abstract away the details of communicating with the relational database in which we will store sensor readings history</li>
+  <li><a href="https://tbot.rs">tbot</a> framework which wraps telegram’s APIs into an asynchronous bot creation framework</li>
+</ul>
+
+<h2 id="bot-architecture">Bot architecture</h2>
+
+<p>Our bot will store all data received from ESP Weather Station in a relational database. In our case, SQLite will provide everything we need without complicating the setup. SQLite is stored in a single file and does not require installing any separate database management software while providing a fully-fledged SQL interface to our data.</p>
+
+<p>We will also use a tbot framework for writing a bot. Tbot is based on tokio, that’s why our asynchronous programming digression will become handy.</p>
+
+<p>We will also use a library called <a href="https://docs.rs/rumq-client/0.1.0-alpha.10/rumq_client/index.html">rumq-client</a> for communicating with our Mosquitto MQTT server.</p>
+
+<p>We will package our bot as a command-line application which supports file-based configuration. Packages like clap and settings will help us to quickly implement config files and parsing command line arguments.</p>
+
+<ul class="task-list">
+  <li class="task-list-item"><input type="checkbox" class="task-list-item-checkbox" disabled="disabled" />Architecture diagram</li>
+</ul>
+
+<h2 id="designing-a-database">Designing a database</h2>
+
+<p>First, let’s look at <code class="highlighter-rouge">[schema.rs](http://schema.rs)</code> file which contain’s our database table definitions. Based on this metadata diesel will be able to generate SQL migrations that create the tables in our DB, so we do not need to do this by hand. Those definitions also will be used by diesel to automatically create queries to the DB.</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">table!</span> <span class="p">{</span>
+    <span class="c">// subscribers table will store telegram identifiers of all users </span>
+    <span class="c">// who want to recieve notifications from our bot</span>
+    <span class="nf">subscribers</span> <span class="p">(</span><span class="n">id</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">id</span> <span class="k">-&gt;</span> <span class="n">Integer</span><span class="p">,</span>
+        <span class="n">telegram_chat_id</span> <span class="k">-&gt;</span> <span class="n">BigInt</span><span class="p">,</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="nd">table!</span> <span class="p">{</span>
+    <span class="c">// weather_log is an append-only log table that</span>
+    <span class="c">// will contain all sensor readings</span>
+    <span class="nf">weather_log</span> <span class="p">(</span><span class="n">id</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">id</span> <span class="k">-&gt;</span> <span class="n">Integer</span><span class="p">,</span>
+        <span class="n">timestamp</span> <span class="k">-&gt;</span> <span class="n">Text</span><span class="p">,</span> <span class="c">// date and time of the reading. SQLite does not have a dedicated type for storing dates, so we will use Text </span>
+        <span class="n">temp</span> <span class="k">-&gt;</span> <span class="n">Float</span><span class="p">,</span>
+        <span class="n">pressure</span> <span class="k">-&gt;</span> <span class="n">Float</span><span class="p">,</span>
+        <span class="n">humidity</span> <span class="k">-&gt;</span> <span class="n">Float</span><span class="p">,</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="nd">allow_tables_to_appear_in_same_query!</span><span class="p">(</span>
+    <span class="n">subscribers</span><span class="p">,</span>
+    <span class="n">weather_log</span><span class="p">,</span>
+<span class="p">);</span>
+</code></pre></div></div>
+
+<p>The first thing we need to do before working with data is to connect to the database. Let’s look at how we can do this with diesel:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// we will need those all imports for the db-related code</span>
+<span class="nd">#[macro_use]</span>
+<span class="k">extern</span> <span class="n">crate</span> <span class="n">diesel</span><span class="p">;</span>
+<span class="k">mod</span> <span class="n">schema</span><span class="p">;</span>
+
+<span class="k">use</span> <span class="nn">crate</span><span class="p">::</span><span class="nn">schema</span><span class="p">::</span><span class="n">weather_log</span><span class="p">;</span>
+<span class="k">use</span> <span class="nn">crate</span><span class="p">::</span><span class="nn">schema</span><span class="p">::</span><span class="n">subscribers</span><span class="p">;</span>
+<span class="k">use</span> <span class="nn">crate</span><span class="p">::</span><span class="nn">schema</span><span class="p">::</span><span class="nn">weather_log</span><span class="p">::</span><span class="nn">dsl</span><span class="p">::</span><span class="o">*</span><span class="p">;</span>
+<span class="k">use</span> <span class="nn">crate</span><span class="p">::</span><span class="nn">schema</span><span class="p">::</span><span class="nn">subscribers</span><span class="p">::</span><span class="nn">dsl</span><span class="p">::</span><span class="o">*</span><span class="p">;</span>
+<span class="k">use</span> <span class="nn">chrono</span><span class="p">::</span><span class="n">Utc</span><span class="p">;</span>
+<span class="k">use</span> <span class="nn">diesel</span><span class="p">::</span><span class="nn">prelude</span><span class="p">::</span><span class="o">*</span><span class="p">;</span>
+<span class="k">use</span> <span class="nn">diesel</span><span class="p">::</span><span class="nn">sqlite</span><span class="p">::</span><span class="n">SqliteConnection</span><span class="p">;</span>
+<span class="k">use</span> <span class="nn">serde</span><span class="p">::{</span><span class="n">Deserialize</span><span class="p">,</span> <span class="n">Serialize</span><span class="p">};</span>
+<span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="nn">fmt</span><span class="p">::</span><span class="n">Display</span><span class="p">;</span>
+
+<span class="c">/// Connect to SQLite database</span>
+<span class="k">pub</span> <span class="k">fn</span> <span class="nf">establish_connection</span><span class="p">(</span><span class="n">database_url</span><span class="p">:</span> <span class="o">&amp;</span><span class="nb">str</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">SqliteConnection</span> <span class="p">{</span>
+    <span class="nd">println!</span><span class="p">(</span><span class="s">"Connecting to {}"</span><span class="p">,</span> <span class="n">database_url</span><span class="p">);</span>
+    <span class="nn">SqliteConnection</span><span class="p">::</span><span class="nf">establish</span><span class="p">(</span><span class="n">database_url</span><span class="p">)</span>
+        <span class="nf">.expect</span><span class="p">(</span><span class="o">&amp;</span><span class="nd">format!</span><span class="p">(</span><span class="s">"Error connecting to {}"</span><span class="p">,</span> <span class="n">database_url</span><span class="p">))</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>As you can see, the connection code is pretty straightforward.</p>
+
+<h3 id="subscribtions">Subscribtions</h3>
+
+<p>Let’s now decide how we will represent subscribers in the code:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">/// This struct represents an existing bot subscriber who can recieve </span>
+<span class="c">/// notifications about new weather measurements.</span>
+<span class="c">/// `Queryable` trait identifies that Diesel will use this structure to </span>
+<span class="c">/// represent rows selected from  SQLite database.</span>
+<span class="nd">#[derive(Queryable)]</span>
+<span class="k">pub</span> <span class="k">struct</span> <span class="n">Subscriber</span> <span class="p">{</span>
+    <span class="n">id</span><span class="p">:</span> <span class="nb">i32</span><span class="p">,</span>
+    <span class="n">telegram_chat_id</span><span class="p">:</span> <span class="nb">i64</span>
+<span class="p">}</span>
+
+<span class="c">/// This struct represents a new bot subscriber.</span>
+<span class="c">/// `Insertable` trait means that Diesel will expect this stcuture to</span>
+<span class="c">/// represent new rows that we can insert into SQLite database.</span>
+<span class="nd">#[derive(Insertable)]</span>
+<span class="nd">#[table_name</span> <span class="nd">=</span> <span class="s">"subscribers"</span><span class="nd">]</span>
+<span class="k">pub</span> <span class="k">struct</span> <span class="n">NewSubscriber</span> <span class="p">{</span>
+    <span class="n">telegram_chat_id</span><span class="p">:</span> <span class="nb">i64</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Please note, that we can use <code class="highlighter-rouge">table_name</code> attribute to deliberately tell diesel which table to use as a backing storage for a struct.</p>
+
+<p>Next, we need to define some basic functions to work with subscriptions:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// Save new subscriber to the database if he does not already exist</span>
+<span class="k">pub</span> <span class="k">fn</span> <span class="nf">subscribe</span><span class="p">(</span><span class="n">chat_id</span><span class="p">:</span> <span class="nb">i64</span><span class="p">,</span> <span class="n">connection</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">SqliteConnection</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">Result</span><span class="o">&lt;</span><span class="n">NewSubscriber</span><span class="p">,</span> <span class="o">&amp;</span><span class="nb">str</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="c">// let's find if there are any existing subscribers</span>
+    <span class="k">let</span> <span class="n">existing_subscriber</span> <span class="o">=</span> <span class="n">subscribers</span><span class="nf">.filter</span><span class="p">(</span><span class="n">telegram_chat_id</span><span class="nf">.eq</span><span class="p">(</span><span class="n">chat_id</span><span class="p">))</span><span class="py">.first</span><span class="p">::</span><span class="o">&lt;</span><span class="n">Subscriber</span><span class="o">&gt;</span><span class="p">(</span><span class="n">connection</span><span class="p">);</span>
+
+    <span class="k">if</span> <span class="k">let</span> <span class="nf">Err</span><span class="p">(</span><span class="nn">diesel</span><span class="p">::</span><span class="n">NotFound</span><span class="p">)</span> <span class="o">=</span> <span class="n">existing_subscriber</span> <span class="p">{</span>
+        <span class="c">// let's create a new one if there is noone found</span>
+        <span class="k">let</span> <span class="n">subscriber</span> <span class="o">=</span> <span class="n">NewSubscriber</span> <span class="p">{</span><span class="n">telegram_chat_id</span><span class="p">:</span> <span class="n">chat_id</span> <span class="p">};</span>
+
+        <span class="k">match</span> <span class="nn">diesel</span><span class="p">::</span><span class="nf">insert_into</span><span class="p">(</span><span class="n">subscribers</span><span class="p">)</span><span class="nf">.values</span><span class="p">(</span><span class="o">&amp;</span><span class="n">subscriber</span><span class="p">)</span><span class="nf">.execute</span><span class="p">(</span><span class="n">connection</span><span class="p">)</span> <span class="p">{</span>
+            <span class="nf">Ok</span><span class="p">(</span><span class="mi">_</span><span class="p">)</span> <span class="k">=&gt;</span> <span class="nf">Ok</span><span class="p">(</span><span class="n">subscriber</span><span class="p">),</span>
+            <span class="nf">Err</span><span class="p">(</span><span class="mi">_</span><span class="p">)</span> <span class="k">=&gt;</span> <span class="nf">Err</span><span class="p">(</span><span class="s">"Error while saving new subscriber to DB"</span><span class="p">)</span>
+        <span class="p">}</span>
+    <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+        <span class="nf">Err</span><span class="p">(</span><span class="s">"The subscriber already exists"</span><span class="p">)</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="c">/// Deletes a subscriber from the database</span>
+<span class="k">pub</span> <span class="k">fn</span> <span class="nf">unsubscribe</span><span class="p">(</span><span class="n">chat_id</span><span class="p">:</span> <span class="nb">i64</span><span class="p">,</span> <span class="n">connection</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">SqliteConnection</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">QueryResult</span><span class="o">&lt;</span><span class="nb">usize</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="nn">diesel</span><span class="p">::</span><span class="nf">delete</span><span class="p">(</span><span class="n">subscribers</span><span class="nf">.filter</span><span class="p">(</span><span class="n">telegram_chat_id</span><span class="nf">.eq</span><span class="p">(</span><span class="n">chat_id</span><span class="p">)))</span><span class="nf">.execute</span><span class="p">(</span><span class="n">connection</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<h3 id="weather-messages">Weather messages</h3>
+
+<p>Now, it is time to define structures related to weather messages. It is important to mention that the design process of this kind of API is in general done in backwards. Instead of writing the DB code as a first step, it is more natural to write the bot first, deciding on which functionality you will need from the DB layer in ad-hoc manner. However, it is a lot easier to explain how everything works starting from the data model, so we will go through that first.</p>
+
+<p>We will separate MQTT message format from the internal one to keep our backend decoupled from edge-device message format:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">/// This structure represents weather data that we read from SQLlite</span>
+<span class="nd">#[derive(Queryable,</span> <span class="nd">Serialize,</span> <span class="nd">Deserialize,</span> <span class="nd">Debug)]</span>
+<span class="k">pub</span> <span class="k">struct</span> <span class="n">WeatherMessage</span> <span class="p">{</span>
+    <span class="k">pub</span> <span class="n">id</span><span class="p">:</span> <span class="nb">i32</span><span class="p">,</span>
+    <span class="k">pub</span> <span class="n">timestamp</span><span class="p">:</span> <span class="nb">String</span><span class="p">,</span>
+    <span class="k">pub</span> <span class="n">temp</span><span class="p">:</span> <span class="nb">f32</span><span class="p">,</span>
+    <span class="k">pub</span> <span class="n">pressure</span><span class="p">:</span> <span class="nb">f32</span><span class="p">,</span>
+    <span class="k">pub</span> <span class="n">humidity</span><span class="p">:</span> <span class="nb">f32</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="c">/// WeatherMessage respresentation for insert DB queries</span>
+<span class="c">/// This structure represents weather data that we insert into SQLlite</span>
+<span class="nd">#[derive(Insertable,</span> <span class="nd">Serialize,</span> <span class="nd">Deserialize,</span> <span class="nd">Debug)]</span>
+<span class="nd">#[table_name</span> <span class="nd">=</span> <span class="s">"weather_log"</span><span class="nd">]</span>
+<span class="k">pub</span> <span class="k">struct</span> <span class="n">NewWeatherMessage</span> <span class="p">{</span>
+    <span class="n">timestamp</span><span class="p">:</span> <span class="nb">String</span><span class="p">,</span>
+    <span class="n">temp</span><span class="p">:</span> <span class="nb">f32</span><span class="p">,</span>
+    <span class="n">pressure</span><span class="p">:</span> <span class="nb">f32</span><span class="p">,</span>
+    <span class="n">humidity</span><span class="p">:</span> <span class="nb">f32</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="c">/// Raw WeatherMessage that comves from the edge device via MQTT in a JSON format</span>
+<span class="nd">#[derive(Serialize,</span> <span class="nd">Deserialize,</span> <span class="nd">Debug)]</span>
+<span class="k">pub</span> <span class="k">struct</span> <span class="n">EspWeatherMessage</span> <span class="p">{</span>
+    <span class="n">temp</span><span class="p">:</span> <span class="nb">f32</span><span class="p">,</span>
+    <span class="n">pressure</span><span class="p">:</span> <span class="nb">f32</span><span class="p">,</span>
+    <span class="n">humidity</span><span class="p">:</span> <span class="nb">f32</span><span class="p">,</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>We will also extend <code class="highlighter-rouge">EspWeatherMessage</code> with a few formatting methods. We will use <code class="highlighter-rouge">Display</code> trait to be able to convert the message into a human-readable format:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span> <span class="n">EspWeatherMessage</span> <span class="p">{</span>
+    <span class="k">pub</span> <span class="k">fn</span> <span class="nf">temp_to_emoji</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="o">&amp;</span><span class="nb">str</span> <span class="p">{</span>
+        <span class="k">if</span> <span class="k">self</span><span class="py">.temp</span> <span class="o">&lt;</span> <span class="o">-</span><span class="mi">10</span><span class="err">.</span> <span class="p">{</span>
+            <span class="s">"🥶"</span>
+        <span class="p">}</span> <span class="k">else</span> <span class="k">if</span> <span class="k">self</span><span class="py">.temp</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="err">.</span> <span class="p">{</span>
+            <span class="s">"❄️"</span>
+        <span class="p">}</span> <span class="k">else</span> <span class="k">if</span> <span class="k">self</span><span class="py">.temp</span> <span class="o">&gt;</span> <span class="mi">20</span><span class="err">.</span> <span class="p">{</span>
+            <span class="s">"☀️"</span>
+        <span class="p">}</span> <span class="k">else</span> <span class="k">if</span> <span class="k">self</span><span class="py">.temp</span> <span class="o">&gt;</span> <span class="mi">30</span><span class="err">.</span> <span class="p">{</span>
+            <span class="s">"🔥"</span>
+        <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+            <span class="s">""</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+
+    <span class="c">/// A handy function to convert humidity percentage into useful notifications</span>
+    <span class="k">pub</span> <span class="k">fn</span> <span class="nf">humidity_to_emoji</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="o">&amp;</span><span class="nb">str</span> <span class="p">{</span>
+        <span class="k">if</span> <span class="k">self</span><span class="py">.humidity</span> <span class="o">&gt;</span> <span class="mi">70</span><span class="err">.</span> <span class="p">{</span>
+            <span class="s">"Do not forget an umbrella ☂️"</span>
+        <span class="p">}</span> <span class="k">else</span> <span class="k">if</span> <span class="k">self</span><span class="py">.humidity</span> <span class="o">&gt;</span> <span class="mi">90</span><span class="err">.</span> <span class="p">{</span>
+            <span class="s">"🌧"</span>
+        <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+            <span class="s">""</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+
+    <span class="c">/// Converts pressure from Pascals to millimetres of mercury</span>
+    <span class="k">pub</span> <span class="k">fn</span> <span class="nf">pressure_to_enoji</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="o">&amp;</span><span class="nb">str</span> <span class="p">{</span>
+        <span class="k">const</span> <span class="n">PA_TO_MM_MERCURY</span><span class="p">:</span> <span class="nb">f32</span> <span class="o">=</span> <span class="mf">133.322</span><span class="p">;</span>
+        <span class="k">const</span> <span class="n">NORMAL_PRESSURE</span><span class="p">:</span> <span class="nb">f32</span> <span class="o">=</span> <span class="mi">101_325</span><span class="err">.</span><span class="mi">0</span> <span class="o">/</span> <span class="n">PA_TO_MM_MERCURY</span><span class="p">;</span>
+
+        <span class="k">if</span> <span class="p">(</span><span class="k">self</span><span class="py">.pressure</span> <span class="o">/</span> <span class="n">PA_TO_MM_MERCURY</span><span class="p">)</span> <span class="o">&gt;</span> <span class="p">(</span><span class="n">NORMAL_PRESSURE</span> <span class="o">+</span> <span class="mf">10.0</span><span class="p">)</span> <span class="p">{</span>
+            <span class="s">"⬆️ high pressure"</span>
+        <span class="p">}</span> <span class="k">else</span> <span class="k">if</span> <span class="p">(</span><span class="k">self</span><span class="py">.pressure</span> <span class="o">/</span> <span class="n">PA_TO_MM_MERCURY</span><span class="p">)</span> <span class="o">&lt;</span> <span class="p">(</span><span class="n">NORMAL_PRESSURE</span> <span class="o">-</span> <span class="mf">10.0</span><span class="p">)</span> <span class="p">{</span>
+            <span class="s">"⬇️ low pressure"</span>
+        <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+            <span class="s">""</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="c">/// Display trait is used to convert `EspWeatherMessage` to string.</span>
+<span class="c">/// We will use this implementation to convert messages to text notifications that will be sent to subscribers</span>
+<span class="k">impl</span> <span class="n">Display</span> <span class="k">for</span> <span class="n">EspWeatherMessage</span> <span class="p">{</span>
+    <span class="k">fn</span> <span class="nf">fmt</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">,</span> <span class="n">f</span><span class="p">:</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="nn">std</span><span class="p">::</span><span class="nn">fmt</span><span class="p">::</span><span class="n">Formatter</span><span class="o">&lt;</span><span class="nv">'_</span><span class="o">&gt;</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nn">std</span><span class="p">::</span><span class="nn">fmt</span><span class="p">::</span><span class="n">Result</span> <span class="p">{</span>
+        <span class="k">const</span> <span class="n">pa_to_mm_mercury</span><span class="p">:</span> <span class="nb">f32</span> <span class="o">=</span> <span class="mf">133.322</span><span class="p">;</span>
+
+        <span class="nd">write!</span><span class="p">(</span>
+            <span class="n">f</span><span class="p">,</span>
+            <span class="s">"{}{}{}</span><span class="se">\n</span><span class="s">℃{:&gt;10.2}</span><span class="se">\n</span><span class="s">Humidity{:&gt;10.2}%</span><span class="se">\n</span><span class="s">Pressure{:&gt;10.2}"</span><span class="p">,</span>
+            <span class="k">self</span><span class="nf">.temp_to_emoji</span><span class="p">(),</span>
+            <span class="k">self</span><span class="nf">.humidity_to_emoji</span><span class="p">(),</span>
+            <span class="k">self</span><span class="nf">.pressure_to_enoji</span><span class="p">(),</span>
+            <span class="k">self</span><span class="py">.temp</span><span class="p">,</span>
+            <span class="k">self</span><span class="py">.humidity</span><span class="p">,</span>
+            <span class="k">self</span><span class="py">.pressure</span> <span class="o">/</span> <span class="n">pa_to_mm_mercury</span>
+        <span class="p">)</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>A few convenience methods for constructing and saving weather messages will also be handy to use in our bot:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+<span class="k">impl</span> <span class="n">NewWeatherMessage</span> <span class="p">{</span>
+    <span class="c">/// Create a new WeatherMessage that later can be saved to database</span>
+    <span class="k">pub</span> <span class="k">fn</span> <span class="nf">new</span><span class="p">(</span><span class="n">tmp</span><span class="p">:</span> <span class="nb">f32</span><span class="p">,</span> <span class="n">press</span><span class="p">:</span> <span class="nb">f32</span><span class="p">,</span> <span class="n">hum</span><span class="p">:</span> <span class="nb">f32</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">NewWeatherMessage</span> <span class="p">{</span>
+        <span class="n">NewWeatherMessage</span> <span class="p">{</span>
+            <span class="n">timestamp</span><span class="p">:</span> <span class="nn">Utc</span><span class="p">::</span><span class="nf">now</span><span class="p">()</span><span class="nf">.to_rfc3339</span><span class="p">(),</span>
+            <span class="n">temp</span><span class="p">:</span> <span class="n">tmp</span><span class="p">,</span>
+            <span class="n">pressure</span><span class="p">:</span> <span class="n">press</span><span class="p">,</span>
+            <span class="n">humidity</span><span class="p">:</span> <span class="n">hum</span><span class="p">,</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+
+    <span class="c">/// Converts `EspWeatherMessage` to `NewWeatherMessage` that can be saved to DB.</span>
+    <span class="c">/// This function should be used to convert all new incoming weather messages</span>
+    <span class="k">pub</span> <span class="k">fn</span> <span class="nf">from_esp_weather_message</span><span class="p">(</span><span class="n">msg</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">EspWeatherMessage</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">NewWeatherMessage</span> <span class="p">{</span>
+        <span class="nn">NewWeatherMessage</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="n">msg</span><span class="py">.temp</span><span class="p">,</span> <span class="n">msg</span><span class="py">.humidity</span><span class="p">,</span> <span class="n">msg</span><span class="py">.humidity</span><span class="p">)</span>
+    <span class="p">}</span>
+   
+    <span class="c">/// Saves message to database</span>
+    <span class="k">pub</span> <span class="k">fn</span> <span class="nf">save_to_db</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">,</span> <span class="n">connection</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">SqliteConnection</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">QueryResult</span><span class="o">&lt;</span><span class="nb">usize</span><span class="o">&gt;</span> <span class="p">{</span>
+        <span class="k">let</span> <span class="n">result</span> <span class="o">=</span> <span class="nn">diesel</span><span class="p">::</span><span class="nf">insert_into</span><span class="p">(</span><span class="nn">weather_log</span><span class="p">::</span><span class="n">table</span><span class="p">)</span>
+            <span class="nf">.values</span><span class="p">(</span><span class="k">self</span><span class="p">)</span>
+            <span class="nf">.execute</span><span class="p">(</span><span class="n">connection</span><span class="p">);</span>
+        
+        <span class="n">result</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>If you need more info abut diesel, I suggest going through their <a href="http://diesel.rs/guides/getting-started/">Getting Started guide</a>.</p>
+
+<h2 id="writing-a-bot">Writing a bot</h2>
+
+<p>Now, let’s go on to the most interesting part: writing a telegram bot. We will go through a fairly long listing of bot’s <code class="highlighter-rouge">main</code> function, so I’ll break it in pieces for better clarity. First, we will setup our command line arguments parsing using <code class="highlighter-rouge">clap</code> crate:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// Main WeatherStation Telegram bot fucntion</span>
+<span class="nd">#[tokio::main]</span>
+<span class="k">async</span> <span class="k">fn</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="c">// Clap library allows us to declaratively construct Command-Line Interfaces.</span>
+    <span class="c">// Here we use it to display application medatada and allow user to specify config path</span>
+    <span class="k">let</span> <span class="n">matches</span> <span class="o">=</span> <span class="nn">App</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="s">"Weather station bot"</span><span class="p">)</span>
+        <span class="nf">.version</span><span class="p">(</span><span class="s">"0.1.0"</span><span class="p">)</span>
+        <span class="nf">.author</span><span class="p">(</span><span class="s">"Kirill Dubovikov &lt;dubovikov.kirill@gmail.com&gt;"</span><span class="p">)</span>
+        <span class="nf">.about</span><span class="p">(</span><span class="s">"Telegram bot for ESP32 weather station"</span><span class="p">)</span>
+        <span class="nf">.arg</span><span class="p">(</span>
+            <span class="nn">Arg</span><span class="p">::</span><span class="nf">with_name</span><span class="p">(</span><span class="s">"config"</span><span class="p">)</span>
+                <span class="nf">.short</span><span class="p">(</span><span class="s">"c"</span><span class="p">)</span>
+                <span class="nf">.long</span><span class="p">(</span><span class="s">"config"</span><span class="p">)</span>
+                <span class="c">// Notice that we can set FILE types for arguments, so that clap will validate user input for us.</span>
+                <span class="c">// If the user will enter invalid path clap will notify him and end the application</span>
+                <span class="nf">.value_name</span><span class="p">(</span><span class="s">"FILE"</span><span class="p">)</span> 
+                <span class="nf">.help</span><span class="p">(</span><span class="s">"Sets a custom config file"</span><span class="p">)</span>
+                <span class="nf">.required</span><span class="p">(</span><span class="k">true</span><span class="p">),</span>
+        <span class="p">)</span>
+        <span class="nf">.get_matches</span><span class="p">();</span>
+
+    <span class="nd">println!</span><span class="p">(</span><span class="s">"⚠️Do not forget to make sure that you can connect to Telegram APIs. The polling module won't time out if the service is unawailable"</span><span class="p">);</span>
+    
+    <span class="c">// Read settings from the config file. "config" crate makes this simple</span>
+    <span class="k">let</span> <span class="n">config</span> <span class="o">=</span> <span class="n">matches</span><span class="nf">.value_of</span><span class="p">(</span><span class="s">"config"</span><span class="p">)</span><span class="nf">.unwrap_or</span><span class="p">(</span><span class="s">"config"</span><span class="p">);</span>
+    <span class="k">let</span> <span class="n">settings</span> <span class="o">=</span> <span class="nn">Settings</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="n">config</span><span class="p">)</span><span class="nf">.expect</span><span class="p">(</span><span class="s">"Error while reading settings"</span><span class="p">);</span>
+</code></pre></div></div>
+
+<p><code class="highlighter-rouge">Settings</code> above is just a serializable structure that holds our bot settings inside. Next, we will focus on setting up the <code class="highlighter-rouge">tbot</code> framework, along with several <code class="highlighter-rouge">tokio</code> channels that we will use to communicate between our async functions:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="c">// Structure that represents our Telegram bot.</span>
+    <span class="c">// It is wrapped in an Arc (Atomic reference counter) because we will use it later in send_message_to_telegram function.</span>
+    <span class="c">// This function is asynchronous, so Tokio could run it in a different thread.</span>
+    <span class="c">// Rust compiler is very smart and it won't allow us to pass values between different threads</span>
+    <span class="c">// without proper tracking of references and synchronization, which Arc provices for us.</span>
+    <span class="k">let</span> <span class="n">bot</span> <span class="o">=</span> <span class="nn">Arc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nn">tbot</span><span class="p">::</span><span class="nn">Bot</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="n">settings</span><span class="py">.telegram.token</span><span class="nf">.clone</span><span class="p">()));</span>
+
+    <span class="c">// Tokio unbounded_channel is used to communicate between different asynchronous functions which may run in different threads.</span>
+    <span class="c">// Channels are like pipes: tok_tx can be used to send messages down the piple, and tok_rx can be used to recieve them</span>
+    <span class="k">let</span> <span class="p">(</span><span class="n">tok_tx</span><span class="p">,</span> <span class="k">mut</span> <span class="n">tok_rx</span><span class="p">)</span> <span class="o">=</span> <span class="nn">tokio</span><span class="p">::</span><span class="nn">sync</span><span class="p">::</span><span class="nn">mpsc</span><span class="p">::</span><span class="nn">unbounded_channel</span><span class="p">::</span><span class="o">&lt;</span><span class="n">EspWeatherMessage</span><span class="o">&gt;</span><span class="p">();</span>
+
+    <span class="c">// watch::channel is a Tokio channel with a single producer and multiple consumers.</span>
+    <span class="c">// This is useful to share configuration (single producer) with many asynchronous functions (multiple consumers)</span>
+    <span class="k">let</span> <span class="p">(</span><span class="mi">_</span><span class="p">,</span> <span class="n">conf_rx</span><span class="p">)</span> <span class="o">=</span> <span class="nn">watch</span><span class="p">::</span><span class="nf">channel</span><span class="p">(</span><span class="n">settings</span><span class="nf">.clone</span><span class="p">());</span>
+
+    <span class="k">let</span> <span class="k">mut</span> <span class="n">conf</span> <span class="o">=</span> <span class="n">conf_rx</span><span class="nf">.clone</span><span class="p">();</span>
+    
+    <span class="c">// That's how we can recieve a config from watch::channel</span>
+    <span class="k">let</span> <span class="n">settings</span> <span class="o">=</span> <span class="n">conf</span><span class="nf">.recv</span><span class="p">()</span><span class="py">.await</span><span class="nf">.unwrap</span><span class="p">();</span>
+</code></pre></div></div>
+
+<p>Then, let’s spawn a function that will read incoming messages from our MQTT queue:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="c">// tokio::spawn runs process_mqtt_messages asynchronously so that it won't block our main thread.</span>
+    <span class="c">// This means that the execution of this function can continue without interruption.</span>
+    <span class="c">//</span>
+    <span class="c">// async move designates that we can use variables from our main thread inside tokio::spawn block</span>
+    <span class="c">// If you are familiar with closures and Rust borrow checker: </span>
+    <span class="c">// async move tells that we can move values from enclosing environment inside the clousure's environment</span>
+    <span class="nn">tokio</span><span class="p">::</span><span class="nf">spawn</span><span class="p">(</span><span class="k">async</span> <span class="k">move</span> <span class="p">{</span>
+        <span class="nf">process_mqtt_messages</span><span class="p">(</span><span class="o">&amp;</span><span class="n">settings</span><span class="p">,</span> <span class="n">tok_tx</span><span class="p">)</span><span class="py">.await</span><span class="p">;</span>
+    <span class="p">});</span>
+</code></pre></div></div>
+
+<p>Here it the MQTT related code that does all of the actual job:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">/// Connects to MQTT server using [Settings](settings::Settings) structure. The settings are meant to be read from config TOML file</span>
+<span class="c">/// Will automatically subsribe to the topic name in the config.</span>
+<span class="c">/// Subscribes to the weather topic and forwards parsed messages to tokio channel</span>
+<span class="k">async</span> <span class="k">fn</span> <span class="nf">process_mqtt_messages</span><span class="p">(</span><span class="n">settings</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">Settings</span><span class="p">,</span> <span class="n">tx</span><span class="p">:</span> <span class="n">UnboundedSender</span><span class="o">&lt;</span><span class="n">EspWeatherMessage</span><span class="o">&gt;</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nd">println!</span><span class="p">(</span>
+        <span class="s">"Conntcting to MQTT server at {}:{}/{}"</span><span class="p">,</span>
+        <span class="n">settings</span><span class="py">.mqtt.host</span><span class="p">,</span> <span class="n">settings</span><span class="py">.mqtt.port</span><span class="p">,</span> <span class="n">settings</span><span class="py">.mqtt.topic_name</span>
+    <span class="p">);</span>
+
+    <span class="c">// Create MQTT connection options using information from config file</span>
+    <span class="k">let</span> <span class="k">mut</span> <span class="n">mqtt_options</span> <span class="o">=</span> <span class="nn">MqttOptions</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="s">"weather_station_bot"</span><span class="p">,</span> <span class="n">settings</span><span class="py">.mqtt.host</span><span class="nf">.clone</span><span class="p">(),</span> <span class="n">settings</span><span class="py">.mqtt.port</span><span class="nf">.clone</span><span class="p">());</span>
+    <span class="n">mqtt_options</span><span class="nf">.set_credentials</span><span class="p">(</span><span class="n">settings</span><span class="py">.mqtt.username</span><span class="nf">.clone</span><span class="p">(),</span> <span class="n">settings</span><span class="py">.mqtt.password</span><span class="nf">.clone</span><span class="p">());</span>
+    <span class="n">mqtt_options</span><span class="nf">.set_inflight</span><span class="p">(</span><span class="mi">10</span><span class="p">);</span>
+
+    <span class="k">let</span> <span class="n">ca_cert</span> <span class="o">=</span> <span class="nf">read_file_to_bytes</span><span class="p">(</span><span class="o">&amp;</span><span class="n">settings</span><span class="py">.tls.ca_cert</span><span class="p">);</span>
+    <span class="n">mqtt_options</span><span class="nf">.set_ca</span><span class="p">(</span><span class="n">ca_cert</span><span class="p">);</span>
+    <span class="n">mqtt_options</span><span class="nf">.set_keep_alive</span><span class="p">(</span><span class="mi">50</span><span class="p">);</span>
+    <span class="n">mqtt_options</span><span class="nf">.set_throttle</span><span class="p">(</span><span class="nn">std</span><span class="p">::</span><span class="nn">time</span><span class="p">::</span><span class="nn">Duration</span><span class="p">::</span><span class="nf">from_secs</span><span class="p">(</span><span class="mi">1</span><span class="p">));</span>
+
+    <span class="c">// requests_tx will be used to send subscription requests to the MQTT server</span>
+    <span class="c">// requests_rx will be used by tokio event loop to recieve new messages</span>
+    <span class="k">let</span> <span class="p">(</span><span class="k">mut</span> <span class="n">requests_tx</span><span class="p">,</span> <span class="n">requests_rx</span><span class="p">)</span> <span class="o">=</span> <span class="nf">channel</span><span class="p">(</span><span class="mi">10</span><span class="p">);</span>
+
+    <span class="c">// Here we subscribe to the MQTT topic from the config file</span>
+    <span class="k">let</span> <span class="n">subscription</span> <span class="o">=</span> <span class="nn">Subscribe</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="n">settings</span><span class="py">.mqtt.topic_name</span><span class="nf">.clone</span><span class="p">(),</span> <span class="nn">QoS</span><span class="p">::</span><span class="n">AtLeastOnce</span><span class="p">);</span>
+    <span class="k">let</span> <span class="mi">_</span> <span class="o">=</span> <span class="n">requests_tx</span><span class="nf">.send</span><span class="p">(</span><span class="nn">Request</span><span class="p">::</span><span class="nf">Subscribe</span><span class="p">(</span><span class="n">subscription</span><span class="p">))</span><span class="py">.await</span><span class="p">;</span>
+
+    <span class="c">// And create the Tokio event loop which drives the whole message processing</span>
+    <span class="k">let</span> <span class="k">mut</span> <span class="n">event_loop</span> <span class="o">=</span> <span class="nf">eventloop</span><span class="p">(</span><span class="n">mqtt_options</span><span class="p">,</span> <span class="n">requests_rx</span><span class="p">);</span>
+    <span class="k">let</span> <span class="k">mut</span> <span class="n">stream</span> <span class="o">=</span> <span class="n">event_loop</span><span class="nf">.connect</span><span class="p">()</span><span class="py">.await</span><span class="nf">.unwrap</span><span class="p">();</span>
+
+    <span class="c">// At last, we delegate each new message process_message_from_device function</span>
+    <span class="nd">println!</span><span class="p">(</span><span class="s">"Waiting for notifications"</span><span class="p">);</span>
+    <span class="k">while</span> <span class="k">let</span> <span class="nf">Some</span><span class="p">(</span><span class="n">notification</span><span class="p">)</span> <span class="o">=</span> <span class="n">stream</span><span class="nf">.next</span><span class="p">()</span><span class="py">.await</span> <span class="p">{</span>
+        <span class="nd">println!</span><span class="p">(</span><span class="s">"New notification — {:?}"</span><span class="p">,</span> <span class="n">notification</span><span class="p">);</span>
+        <span class="nf">process_message_from_device</span><span class="p">(</span><span class="o">&amp;</span><span class="n">notification</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">tx</span><span class="p">);</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="c">/// Main MQTT message processing loop. </span>
+<span class="c">///</span>
+<span class="c">/// Recieves a message from MQTT topic, deserializes it and sends it for further processing using Tokio MPSC framwrok. See [send_message_to_telegram](send_message_to_telegram)</span>
+<span class="k">fn</span> <span class="nf">process_message_from_device</span><span class="p">(</span><span class="n">notification</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">Notification</span><span class="p">,</span> <span class="n">tok_tx</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">UnboundedSender</span><span class="o">&lt;</span><span class="n">EspWeatherMessage</span><span class="o">&gt;</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">match</span> <span class="n">notification</span> <span class="p">{</span>
+        <span class="c">// Notification::Publish represents a message published in MQTT topic</span>
+        <span class="nn">Notification</span><span class="p">::</span><span class="nf">Publish</span><span class="p">(</span><span class="n">publish</span><span class="p">)</span> <span class="k">=&gt;</span> <span class="p">{</span>
+            <span class="k">let</span> <span class="n">text</span><span class="p">:</span> <span class="nb">String</span> <span class="o">=</span> <span class="nn">String</span><span class="p">::</span><span class="nf">from_utf8</span><span class="p">(</span><span class="n">publish</span><span class="py">.payload</span><span class="nf">.clone</span><span class="p">())</span>
+                <span class="nf">.expect</span><span class="p">(</span><span class="s">"Can't decode payload for notification"</span><span class="p">);</span>
+            <span class="nd">println!</span><span class="p">(</span><span class="s">"Recieved message: {}"</span><span class="p">,</span> <span class="n">text</span><span class="p">);</span>
+
+            <span class="c">// As you remember, our ESP32 board encodes messages in JSON format and sends then to the MQTT server.</span>
+            <span class="c">// Here, we decode (deserialize) this message into Rust struct `EspWeatherMessage`</span>
+            <span class="k">let</span> <span class="n">msg</span><span class="p">:</span> <span class="n">EspWeatherMessage</span> <span class="o">=</span> <span class="nn">serde_json</span><span class="p">::</span><span class="nf">from_str</span><span class="p">(</span><span class="o">&amp;</span><span class="n">text</span><span class="p">)</span>
+                <span class="nf">.expect</span><span class="p">(</span><span class="s">"Error while deserializing message from ESP"</span><span class="p">);</span>
+            <span class="nd">println!</span><span class="p">(</span><span class="s">"Deserialized message: {:?}"</span><span class="p">,</span> <span class="n">msg</span><span class="p">);</span>
+            <span class="nd">println!</span><span class="p">(</span><span class="s">"{}"</span><span class="p">,</span> <span class="n">msg</span><span class="p">);</span>
+
+            <span class="c">// We send deserialized message via Tokio channel, that allows different coroutines to communicate between each other</span>
+            <span class="n">tok_tx</span><span class="nf">.send</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span><span class="nf">.unwrap</span><span class="p">();</span>
+        <span class="p">}</span>
+        <span class="mi">_</span> <span class="k">=&gt;</span> <span class="nd">println!</span><span class="p">(</span><span class="s">"{:?}"</span><span class="p">,</span> <span class="n">notification</span><span class="p">),</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Now that we have handled the MQTT message processing part, let’s use the <code class="highlighter-rouge">tok_rx</code> channel to read messages and send them over to our subscribers:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="c">// We clone some variables since we need to move them into closure, but we allso will need them later</span>
+    <span class="c">// Alternatively, you can use Arc's or channels to curcumvent cloning, but I have decided to</span>
+    <span class="c">// make things simpler since cloning values a constant number of times at the application start</span>
+    <span class="c">// won't be a bottleneck in our case</span>
+    <span class="k">let</span> <span class="n">bot_sender</span> <span class="o">=</span> <span class="n">bot</span><span class="nf">.clone</span><span class="p">();</span>
+    <span class="k">let</span> <span class="k">mut</span> <span class="n">conf</span> <span class="o">=</span> <span class="n">conf_rx</span><span class="nf">.clone</span><span class="p">();</span>
+    <span class="nn">tokio</span><span class="p">::</span><span class="nf">spawn</span><span class="p">(</span><span class="k">async</span> <span class="k">move</span> <span class="p">{</span>
+        <span class="c">// Here all the magic happens 🌈</span>
+        <span class="k">let</span> <span class="n">settings</span><span class="p">:</span> <span class="n">Settings</span> <span class="o">=</span> <span class="n">conf</span><span class="nf">.recv</span><span class="p">()</span><span class="py">.await</span><span class="nf">.unwrap</span><span class="p">();</span>
+        <span class="c">// Recieve new message from MQTT topic</span>
+        <span class="k">while</span> <span class="k">let</span> <span class="nf">Some</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span> <span class="o">=</span> <span class="n">tok_rx</span><span class="nf">.recv</span><span class="p">()</span><span class="py">.await</span> <span class="p">{</span>
+            <span class="c">// Get all subrcribers from database</span>
+            <span class="k">let</span> <span class="n">subscribers</span> <span class="o">=</span> <span class="nf">get_all_subscribers</span><span class="p">(</span><span class="o">&amp;</span><span class="nf">establish_connection</span><span class="p">(</span><span class="o">&amp;</span><span class="n">settings</span><span class="py">.db_path</span><span class="p">));</span> 
+            <span class="nd">println!</span><span class="p">(</span><span class="s">"Recieved new message — {:?}"</span><span class="p">,</span> <span class="n">msg</span><span class="p">);</span>
+            <span class="k">let</span> <span class="n">db_path</span> <span class="o">=</span> <span class="n">settings</span><span class="py">.db_path</span><span class="nf">.clone</span><span class="p">();</span>
+
+            <span class="c">// Send message to all active subscribers</span>
+            <span class="k">for</span> <span class="n">subscriber</span> <span class="n">in</span> <span class="o">&amp;</span><span class="n">subscribers</span> <span class="p">{</span>
+                <span class="nf">send_message_to_telegram</span><span class="p">(</span><span class="o">*</span><span class="n">subscriber</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">msg</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">bot_sender</span><span class="p">)</span><span class="py">.await</span><span class="p">;</span>
+            <span class="p">}</span>
+
+            <span class="c">// Save weather data to database. Here we use a spawn blocking function to execute blocking code</span>
+            <span class="c">// which won't normally work in an async block</span>
+            <span class="nn">tokio</span><span class="p">::</span><span class="nn">task</span><span class="p">::</span><span class="nf">spawn_blocking</span><span class="p">(</span><span class="k">move</span> <span class="p">||</span> <span class="p">{</span>
+                <span class="nd">println!</span><span class="p">(</span><span class="s">"Saving message to DB"</span><span class="p">);</span>
+                <span class="k">let</span> <span class="n">connection</span> <span class="o">=</span> <span class="nf">establish_connection</span><span class="p">(</span><span class="o">&amp;</span><span class="n">db_path</span><span class="p">);</span> 
+                <span class="c">// Convert ESPWeatherMessage to NewWeatherMessage which can be used by diesel framework</span>
+                <span class="c">// to save weather data to database</span>
+                <span class="k">let</span> <span class="n">new_log</span> <span class="o">=</span> <span class="nn">NewWeatherMessage</span><span class="p">::</span><span class="nf">from_esp_weather_message</span><span class="p">(</span><span class="o">&amp;</span><span class="n">msg</span><span class="p">);</span>
+                <span class="n">new_log</span><span class="nf">.save_to_db</span><span class="p">(</span><span class="o">&amp;</span><span class="n">connection</span><span class="p">)</span><span class="nf">.unwrap</span><span class="p">();</span>
+                <span class="nd">print!</span><span class="p">(</span><span class="s">"Successfully saved message to DB"</span><span class="p">);</span>
+            <span class="p">});</span>
+        <span class="p">}</span>
+    <span class="p">});</span>
+</code></pre></div></div>
+
+<p>Here is the <code class="highlighter-rouge">send_message_to_telegram</code> function that we used in the code above:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">/// Sends a message to subscribers</span>
+<span class="k">async</span> <span class="k">fn</span> <span class="nf">send_message_to_telegram</span><span class="p">(</span><span class="n">chat_id</span><span class="p">:</span><span class="nb">i64</span><span class="p">,</span> <span class="n">msg</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">EspWeatherMessage</span><span class="p">,</span> <span class="n">bot</span><span class="p">:</span> <span class="o">&amp;</span><span class="nb">Arc</span><span class="o">&lt;</span><span class="nn">tbot</span><span class="p">::</span><span class="n">Bot</span><span class="o">&gt;</span><span class="p">)</span> <span class="p">{</span>
+    <span class="c">// First, we convert EspWeatherMessage to string. Since we have implemented Diplay trait, we can just use format! macro</span>
+    <span class="k">let</span> <span class="n">message_str</span> <span class="o">=</span> <span class="o">&amp;</span><span class="nd">format!</span><span class="p">(</span><span class="s">"{}"</span><span class="p">,</span> <span class="n">msg</span><span class="p">);</span>
+    <span class="c">// Text::plain is used in tbot Telegram library to wrap plain text messages</span>
+    <span class="k">let</span> <span class="n">message</span> <span class="o">=</span> <span class="nn">Text</span><span class="p">::</span><span class="nf">plain</span><span class="p">(</span><span class="n">message_str</span><span class="p">);</span>
+    <span class="nd">println!</span><span class="p">(</span><span class="s">"Sending message to Telegram"</span><span class="p">);</span>
+
+    <span class="c">// Here, we send the message to a subscriber's chat</span>
+    <span class="n">bot</span><span class="nf">.send_message</span><span class="p">(</span><span class="nn">ChatId</span><span class="p">::</span><span class="nf">from</span><span class="p">(</span><span class="n">chat_id</span><span class="p">),</span> <span class="n">message</span><span class="p">)</span>
+        <span class="nf">.call</span><span class="p">()</span>
+        <span class="py">.await</span> <span class="c">// send_message is asynchronous, to actually call it and wait for it's result we need to use await</span>
+        <span class="nf">.expect</span><span class="p">(</span><span class="s">"Error while sending message to the bot"</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Now that we are done with sending messages via Telegram, we need allow our users to subscribe to our notifications. For this, we will implement <code class="highlighter-rouge">/subscribe</code> and <code class="highlighter-rouge">/unsubscribe</code> commands:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// Here we get the event loop to register some commands for the bot users</span>
+<span class="k">let</span> <span class="k">mut</span> <span class="n">event_loop</span> <span class="o">=</span> <span class="p">(</span><span class="o">*</span><span class="n">bot</span><span class="p">)</span><span class="nf">.clone</span><span class="p">()</span><span class="nf">.event_loop</span><span class="p">();</span>
+
+<span class="k">let</span> <span class="n">conf</span> <span class="o">=</span> <span class="n">conf_rx</span><span class="nf">.clone</span><span class="p">();</span>
+    <span class="n">event_loop</span><span class="nf">.command</span><span class="p">(</span><span class="s">"subscribe"</span><span class="p">,</span> <span class="k">move</span> <span class="p">|</span><span class="n">context</span><span class="p">|</span> <span class="p">{</span>
+        <span class="c">// Subscribe command can be used by the user to get notifications about</span>
+        <span class="c">// new weather readings</span>
+        <span class="k">let</span> <span class="k">mut</span> <span class="n">conf</span> <span class="o">=</span> <span class="n">conf</span><span class="nf">.clone</span><span class="p">();</span>
+
+        <span class="k">async</span> <span class="k">move</span> <span class="p">{</span>
+            <span class="k">let</span> <span class="n">settings</span><span class="p">:</span> <span class="n">Settings</span> <span class="o">=</span> <span class="n">conf</span><span class="nf">.recv</span><span class="p">()</span><span class="py">.await</span><span class="nf">.unwrap</span><span class="p">();</span>
+            <span class="c">// Here we get the user's chat_id</span>
+            <span class="k">let</span> <span class="n">chat_id</span> <span class="o">=</span> <span class="n">context</span><span class="py">.chat.id</span><span class="err">.</span><span class="mi">0</span><span class="p">;</span>
+            <span class="n">context</span>
+                <span class="nf">.send_message</span><span class="p">(</span><span class="o">&amp;</span><span class="nd">format!</span><span class="p">(</span><span class="s">"Your chat id is {}"</span><span class="p">,</span> <span class="n">chat_id</span><span class="p">))</span>
+                <span class="nf">.call</span><span class="p">()</span>
+                <span class="py">.await</span>
+                <span class="nf">.err</span><span class="p">();</span>
+            
+
+            <span class="c">// and save it to the database</span>
+            <span class="k">let</span> <span class="n">connection</span> <span class="o">=</span> <span class="nf">establish_connection</span><span class="p">(</span><span class="o">&amp;</span><span class="n">settings</span><span class="py">.db_path</span><span class="p">);</span> 
+            <span class="nf">subscribe</span><span class="p">(</span><span class="n">chat_id</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">connection</span><span class="p">)</span><span class="nf">.unwrap</span><span class="p">();</span>
+        <span class="p">}</span>
+    <span class="p">});</span>
+
+    <span class="k">let</span> <span class="n">conf</span> <span class="o">=</span> <span class="n">conf_rx</span><span class="nf">.clone</span><span class="p">();</span>
+    <span class="n">event_loop</span><span class="nf">.command</span><span class="p">(</span><span class="s">"unsubscribe"</span><span class="p">,</span> <span class="k">move</span> <span class="p">|</span><span class="n">context</span><span class="p">|</span> <span class="p">{</span>
+        <span class="c">// the unsubscribe command can be used to unsubscribe from all bot notifications</span>
+        <span class="k">let</span> <span class="k">mut</span> <span class="n">conf</span> <span class="o">=</span> <span class="n">conf</span><span class="nf">.clone</span><span class="p">();</span>
+        <span class="k">async</span> <span class="k">move</span> <span class="p">{</span>
+            <span class="k">let</span> <span class="n">settings</span><span class="p">:</span> <span class="n">Settings</span> <span class="o">=</span> <span class="n">conf</span><span class="nf">.recv</span><span class="p">()</span><span class="py">.await</span><span class="nf">.unwrap</span><span class="p">();</span>
+            <span class="k">let</span> <span class="n">chat_id</span> <span class="o">=</span> <span class="n">context</span><span class="py">.chat.id</span><span class="err">.</span><span class="mi">0</span><span class="p">;</span>
+            <span class="k">let</span> <span class="n">connection</span> <span class="o">=</span> <span class="nf">establish_connection</span><span class="p">(</span><span class="o">&amp;</span><span class="n">settings</span><span class="py">.db_path</span><span class="p">);</span>
+            <span class="k">let</span> <span class="n">result</span> <span class="o">=</span> <span class="nf">unsubscribe</span><span class="p">(</span><span class="n">chat_id</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">connection</span><span class="p">);</span>
+
+            <span class="k">if</span> <span class="n">result</span><span class="nf">.is_ok</span><span class="p">()</span> <span class="p">{</span>
+                <span class="n">context</span><span class="nf">.send_message</span><span class="p">(</span><span class="s">"Sucessfully unsubscribed"</span><span class="p">)</span><span class="nf">.call</span><span class="p">()</span><span class="py">.await</span><span class="nf">.err</span><span class="p">();</span>
+            <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+                <span class="n">context</span><span class="nf">.send_message</span><span class="p">(</span><span class="s">"Can't unsubscribe. Are you subscribed?"</span><span class="p">)</span><span class="nf">.call</span><span class="p">()</span><span class="py">.await</span><span class="nf">.err</span><span class="p">();</span>
+            <span class="p">}</span>
+        <span class="p">}</span>
+    <span class="p">});</span>
+</code></pre></div></div>
+
+<p>That’s it. We have implemented a basic notification bot. Now just need to start the event loop and the bot will process messages from our weather station and send them over to the subscribers:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// this starts the main event loop</span>
+<span class="n">event_loop</span><span class="nf">.polling</span><span class="p">()</span><span class="nf">.start</span><span class="p">()</span><span class="py">.await</span><span class="nf">.unwrap</span><span class="p">();</span>
+</code></pre></div></div>
+
+<p>You may now compile the project, fill in the config file and start the bot like this:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./target/debug/weather_station_bot <span class="nt">--config</span> config.toml
+</code></pre></div></div>
+
+<h1 id="conclusion">Conclusion</h1>
+
+<p>We have created a Telegram bot that is capable of managing user subscriptions and sending weather notifications from our weather station. In the next part, we will create an alternative user interface: a web dashboard along with a REST API for our weather database.</p>
+
+
+<div class="share-page">
+    <div class="wow bounce">
+    <p>
+    <b class="contrast">Share this post</b><br/>
+    </p>
+    </div>
+    <a href="https://twitter.com/intent/tweet?text=Building a Weather Station Bot&url=/articles/rust/building-a-weather-station-bot&via=kdubovikov&related=kdubovikov" rel="nofollow" target="_blank" title="Share on Twitter"><span class="icon-twitter"></span></a>
+    <a href="https://facebook.com/sharer.php?u=/articles/rust/building-a-weather-station-bot" rel="nofollow" target="_blank" title="Share on Facebook"><span class="icon-facebook2"></span></a>
+    <a href="http://www.linkedin.com/shareArticle?mini=true&url=<URL>&title=Building a Weather Station Bot&summary=Building a Weather Station Bot&source=/articles/rust/building-a-weather-station-bot" rel="nofollow" target="_blank" title="Share on LinkedIn+"><span class="icon-linkedin"></span></a>
+    <a href="http://www.reddit.com/submit?url=/articles/rust/building-a-weather-station-bot&title=Building a Weather Station Bot" rel="nofollow" target="_blank" title="Share on Reddit"><span class="icon-reddit"></span></a>
+</div>
+    </article>
+    <span class="print-footer">Building a Weather Station Bot - September 18, 2020 - Kirill Dubovikov</span>
+    <footer>
+  <hr class="slender">
+  <ul class="footer-links">
+    
+      <li>
+        <a class="social-link" href="//www.twitter.com/kdubovikov">Twitter</a>
+      </li>
+    
+      <li>
+        <a class="social-link" href="//github.com/kdubovikov">GitHub</a>
+      </li>
+    
+      <li>
+        <a class="social-link" href="//linkedin.com/in/kirill-dubovikov-2a20b154/">LinkedIn</a>
+      </li>
+      
+    <li>
+      <a class="social-link" href="/feed.xml">RSS</a>
+    </li>
+  </ul>
+<div class="credits">
+<span>&copy; 2020 &nbsp;&nbsp;KIRILL DUBOVIKOV</span></br> <br>
+</div>  
+</footer>
+  </body>
+</html>
