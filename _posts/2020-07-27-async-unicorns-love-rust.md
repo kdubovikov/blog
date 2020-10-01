@@ -86,7 +86,7 @@ let output = Command::new("echo")
                      .expect("Failed to execute command");
 assert_eq!(b"Hello world\n", output.stdout.as_slice());
 
-// in this way, we coult fetch data using external applications
+// in this way, we could fetch data using external applications
 let response = Command::new("curl")
                      .arg("http://unicorn.shop/store/items")
                      .output()
@@ -107,14 +107,14 @@ use std::thread;
 use std::sync::mpsc::channel;
 
 // MPSC stands for Multiple Producer Single consumer.
-// Channels are a useful abrtsaction for communication between threads:
-// tx allows multiple producers to send data over the channel,
-// rx allows a single consumer to recieve the data from producers.
+// Channels are a useful abstraction for communication between threads:
+// tx (transmitter) allows multiple producers to send data over the channel,
+// rx (receiver) allows a single consumer to recieve the data from producers.
 // In our case, tx will be used by multiple threads to send responses to our reciever thread
 let (tx, rx) = channel();
 
 let sender = thread::spawn(move || {
-		// We will use an imaginary API for sendind HTTP GET requests for simplification
+		// We will use an imaginary API for sending HTTP GET requests for simplification
 		let response = get_http_response(String::from("http://unicorn.shop/store/items"))
     tx.send(response)
         .expect("Unable to send on channel");
@@ -172,7 +172,7 @@ while let Some(response) = rx.iter() {
 
 Now that you know how to use threads, let's fast-forward our unicorn business for a few years. We are still growing, and now almost all shops are integrated into our platform. Someday, unicorn appliances and care products sellers got interested in providing co-sell options so that you won't only buy a unicorn, but a fully packed experience with the best saddle and latest horn care shampoo on the market.
 
-All this means that we will have a great expansion of our service, and a lot more HTTP requests to do. Also, our application starts to become more complex. New additions to the business logic  incroduce lots of buds and are slower to implement. The threading backend that we use won't keep up with the job anymore. 
+All this means that we will have a great expansion of our service, and a lot more HTTP requests to do. Also, our application starts to become more complex. New additions to the business logic  introduce lots of buds and are slower to implement. The threading backend that we use won't keep up with the job anymore. 
 
 # Async to the rescue
 
@@ -188,7 +188,7 @@ This functionality can be leveraged to avoid blocking on the I/O code in a singl
 
 As you can see, the event loop operates by observing events and executing tasks. A task can be thought of as an abstraction over a block of code. The event loop works by observing I/O events from the operating system and executing tasks that read or write data. 
 
-This model introduces a significant drawback compared to the traditional approach: the event loop runs in a single thread. This means that if our tasks contain anything but I/O operations their execution will block the entire event loop. That leads to a conclusion: if your application uses a lot of I/O requests, it will get a big performance boost from using the event loop approach. However, if it is CPU-heavy and uses lots of computational resources it will block the event loop too much for it to provide any benefit. Modern asynchronous libraries provide a way to fight this by providing additional thread pool which can be used to execute blocking tasks without stopping the event loop.
+This model introduces a significant drawback compared to the traditional approach: the event loop runs in a single thread. This means that if our tasks contain anything but I/O operations their execution will block the entire event loop. That leads to a conclusion: if your application uses a lot of I/O requests, it will get a big performance boost from using the event loop approach. However, if it is CPU-heavy and uses lots of computational resources, it will block the event loop too much for it to provide any benefit. Modern asynchronous libraries provide a way to fight this by providing additional thread pool which can be used to execute blocking tasks without stopping the event loop.
 
 Another important part of the solution is the asynchronous programming paradigm. Modern programming languages simplify working with asynchronous code by providing special syntax constructs. For example, Rust allows us to define `async` closures and functions. 
 
@@ -208,7 +208,7 @@ fn main() {
 }
 ```
 
-The above example is from from the [Asynchronous Programming In Rust](https://rust-lang.github.io/async-book/01_getting_started/04_async_await_primer.html). I suggest reading the book for a more in-depth intro into async Rust
+The above example is from from the [Asynchronous Programming In Rust](https://rust-lang.github.io/async-book/01_getting_started/04_async_await_primer.html). I suggest reading the book for a more in-depth intro into async Rust.
 
 Each asynchronous function returns a `Future`, a special construct that designates a result, which will be returned sometime in the future. Notice that the `hello_world` function will not be executed until we `block_on` the future.
 
@@ -220,7 +220,7 @@ use tokio::sync::Mutex;
 
 #[tokio::main]
 async fn main() {
-	// We create the bot's event lool by using token from the environment variable BOT_TOKEN
+	// We create the bot's event loop by using token from the environment variable BOT_TOKEN
   let mut bot = tbot::from_env!("BOT_TOKEN")
     .event_loop();
 
@@ -232,8 +232,8 @@ async fn main() {
     async move {
       let message = String::from("Hi there!");
 			
-			// finally, we issue a blocking call that sends the message back to the user
-			// await.unwrap() allows us to force the execution of a send_message API call
+			// finally, we issue a blocking call that sends the message back to the user.
+			// await.unwrap() allows us to force the execution of a send_message API call.
 			// without it, nothing would happen
       context
         .send_message(&message)
