@@ -10,7 +10,7 @@ In this post we are going to switch from hardware to software and write a telegr
 <!--more-->
 
 # Writing a Weather Station Bot
-In the [previous post](https://blog.kdubovikov.ml/articles/rust/async-unicorns-love-rust) we have covered the basics of the asynchronous programming in Rust, which will allow us to write a telegram bot that reads measurements from MQTT server and send notification messages to Telegram. The complete source code for this post is hosted in a GitHub repository.
+In the [previous post](https://blog.kdubovikov.ml/articles/rust/async-unicorns-love-rust) we have covered the basics of the asynchronous programming in Rust, which will allow us to write a telegram bot that reads measurements from MQTT server and send notification messages to Telegram. The complete source code for this post is hosted in a [GitHub repository which you can access by following this link](https://github.com/kdubovikov/weather-station-bot).
 
 This project will use a few libraries which will greatly simplify our work:
 
