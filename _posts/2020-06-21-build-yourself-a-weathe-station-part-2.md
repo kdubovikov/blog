@@ -5,13 +5,19 @@ date:   2020-06-21 00:00:00
 categories: hardware
 ---
 
-# Writing code for ESP32
-
 In the [previous post](https://blog.kdubovikov.ml/articles/hardware/build-yourself-a-weather-station), we have covered the hardware setup for building a weather station. Starting from now, we will start coding. The first missing piece is the firmware for ESP32.
 
 <!--more-->
 
-Previous post in series: [Building a weather station]({% post_url 2020-06-13-build-yourself-a-weather-station %})
+# Table of Contents
+
+1. [Build yourself a weather station. Part I](/articles/hardware/build-yourself-a-weather-station)
+1. → Building yourself a weather station. Part 2
+1. [Async Unicorns love Rust](/articles/rust/async-unicorns-love-rust)
+1. [Building a Weather Station Bot](/articles/rust/building-a-weather-station-bot)
+1. [Building a Weather Station UI](/articles/rust/ui/weather-station-ui)
+
+# Writing code for ESP32
 
 This firmware should read the data from BME280 and publish it to the MQTT topic. For ESP32 we have two options: using the Arduino framework or ESP-IDF. While Arduino is extremely popular and easy to use, I have decided to go with ESP-IDF for the following reasons:
 
@@ -37,16 +43,16 @@ After that, go through [getting started](https://docs.espressif.com/projects/esp
 
 Be sure to install drivers, as advised on this [documentation page](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/establish-serial-connection.html). For Macbook pro you will need [CP210x drivers from Silicon Labs](https://www.silabs.com/products/development-tools/software/usb-to-uart-bridge-vcp-drivers). 
 
-The reason you need drivers is that your computer does not understand the language ESP32 speaks. ESP32 transfers data to the external world using a serial protocol {% sidenote 1 "Serial protocol  means that data is transferred one bit at a time. The I2C protocol that we were discussing in the previous post is a serial protocol. On the opposite side are parallel protocols, which  use multiple wires to transmit several bits at once" %} named [RS-232](https://en.wikipedia.org/wiki/RS-232). To bridge serial interface with the USB interface your devboard uses a special bridge chip that acts as a protocol converter. In the case of my board, it is the CP210x. The problem is that your computer does not know how to handle data from your devboard. It assumes that it receives data encoded by some of the standard data transfer protocols of the USB world. Thunderbolt, for example. And in reality, it receives data encoded by a bridge chip. To solve this linguistic inconvenience you install a special driver that decodes signals from the bridge chip and masquerades itself as a virtual COM {% sidenote 2 "COM port is a computers serial inferface. Those ports were pretty common in desktop PCs but are long absent from modern laptops. Operating systems still have drivers for COM devices, so that's a natural choice for emulating serial communication" %} device.
+The reason you need drivers is that your computer does not understand the language ESP32 speaks. ESP32 transfers data to the external world using a serial protocol {% sidenote 1 "Serial protocol  means that data is transferred one bit at a time. The I2C protocol that we were discussing in the previous post is a serial protocol. On the opposite side are parallel protocols, which  use multiple wires to transmit several bits at once" %} named [RS-232](https://en.wikipedia.org/wiki/RS-232). To bridge the serial interface with the USB interface your devboard uses a special bridge chip that acts as a protocol converter. In the case of my board, it is the CP210x. The problem is that your computer does not know how to handle data from your devboard. It assumes that it receives data encoded by some of the standard data transfer protocols of the USB world. Thunderbolt, for example. And in reality, it receives data encoded by a bridge chip. To solve this linguistic inconvenience you install a special driver that decodes signals from the bridge chip and masquerades itself as a virtual COM {% sidenote 2 "COM port is a computer's serial interface. Those ports were pretty common in desktop PCs but are long absent from modern laptops. Operating systems still have drivers for COM devices, so that's a natural choice for emulating serial communication" %} device.
  
 
 # What will the firmware do?
 
-We will write a firmware that will follow **the visious cycle of weather measurment**:
+We will write a firmware that will follow **the vicious cycle of weather measurement**:
 
 1. Connect to a WiFi network
 2. Connect to MQTT server
-3. Read data from BME280 sensor
+3. Read data from a BME280 sensor
 4. Publish the newly read data to the MQTT topic
 5. Go in deep sleep and wake after several hours to repeat all steps starting from 1
 
@@ -57,7 +63,7 @@ To continue, you may clone [this repository](https://github.com/kdubovikov/weath
 - `weather_station.c` — the primary module that implements **the** **vicious cycle of weather measurement**
 - `wifi.c` — everything related to WiFi connectivity
 - `sensor.c`— the code for reading data from BME280 using I2C protocol
-- `mqtt.c` — the code for connecting and publishing messages to MQTT server
+- `mqtt.c` — the code for connecting and publishing messages to the MQTT server
 
 All modules are stored in the [main](https://github.com/kdubovikov/weather-station-esp/tree/master/main) folder. We'll also need to mention our modules in the `CMakeLists.txt` so that ESP-IDF's build system would understand that we need all those source files to compile the project:
 
@@ -72,7 +78,7 @@ Now, lets dive into each module and see how it works.
 
 To build this module, I have borrowed heavily from the [WiFi example](https://github.com/espressif/esp-idf/tree/release/v4.0/examples/wifi/getting_started/station) provided by the framework. In fact, the project was based on this template. The original example connects to the WiFi asynchronously, but a blocking call that waits until we got an IP address from the access point will be useful to us since we want to wait for a WiFi connection before going on and connecting to the MQTT server.
 
-To create a blocking function we'll use a handy `EventGroup` functionality from the FreeRTOS{% sidenote 3 "Free Real Time Operating System contains lots of useful primitives for dealing with concurrency, multiprocessing and synchronization" %}. Events groups allow you to define an event which you can wait for in any other part of your code:
+To create a blocking function we'll use a handy `EventGroup` functionality from the FreeRTOS{% sidenote 3 "Free Real-Time Operating System contains lots of useful primitives for dealing with concurrency, multiprocessing and synchronization" %}. Events groups allow you to define an event which you can wait for in any other part of your code:
 
 ```c
 // Define an event
@@ -88,7 +94,7 @@ xEventGroupSetBits(*connected_event_group, WIFI_CONNECTED_BITS);
 xEventGroupWaitBits(*connected_event_group, WIFI_CONNECTED_BITS, true, true, portMAX_DELAY);
 ```
 
-`xEventGroupWaitBits` is what `wifi_connect_blocking` function uses to block and wait while the board will establish a wifi connection. 
+`xEventGroupWaitBits` is what the `wifi_connect_blocking` function uses to block and wait while the board will establish a wifi connection. 
 
 All WiFi-related code is located at the `wifi.c` file. The best function to start with is `wifi_connect_blocking`
 
@@ -172,7 +178,7 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
 }
 ```
 
-The main purpose of the handler is to wait for the board to get a successful connection and fire `WIFI_CONNECTED_BITS` event to the event group. 
+The main purpose of the handler is to wait for the board to get a successful connection and fire the `WIFI_CONNECTED_BITS` event to the event group. 
 
 The next important part is to make readings from our BME280 sensor, so let's explore how to do that.
 
@@ -373,7 +379,7 @@ static void send_weather_to_mqtt(esp_mqtt_client_handle_t *client, QueueHandle_t
 }
 ```
 
-It reads`WeatherMessage` structure from the queue and serializes it into a JSON message using `create_weather_msg`. Those are defined in a `weather_station.c` module, but let's look at them right now so you will have a complete picture of how the code works. The structure definition is really simple:
+It reads the `WeatherMessage` structure from the queue and serializes it into a JSON message using `create_weather_msg`. Those are defined in a `weather_station.c` module, but let's look at them right now so you will have a complete picture of how the code works. The structure definition is really simple:
 
 ```c
 struct WeatherMessage
@@ -458,13 +464,13 @@ void app_main()
 }
 ```
 
-Free Real Time Operating System contains lots of useful primitives for dealing with concurrency, multiprocessing and synchronization
+Free Real-Time Operating System contains lots of useful primitives for dealing with concurrency, multiprocessing and synchronization
 
 # Setting up a Mosquitto server
 
 The last remaining part is to set up an MQTT server, which will collect messages in a topic. Those messages could then be read by one or multiple subscribers. Of course, we could go the simples way and use the hosted solution, but we will set up our own server to see how everything works internally.
 
-You can set up one on your machine {% sidenote 4 "Google Compute Cloud offers and [always-free f1-micro server](https://cloud.google.com/free/) that will be more than enough for our purposes. You can register a free domain name for it at [http://freenom.com](http://freenom.com/)." %}, or use a virtual private server on some cloud provider like Google Compute Cloud, AWS, Azure, Linode or DigitalOcean.
+You can set up one on your machine {% sidenote 4 "Google Compute Cloud offers and [always-free f1-micro server](https://cloud.google.com/free/) that will be more than enough for our purposes. You can register a free domain name for it at [http://freenom.com](http://freenom.com/)." %}, or use a virtual private server on some cloud providers like Google Compute Cloud, AWS, Azure, Linode or DigitalOcean.
 
 We will use a popular and reliable [Mosquitto](http://mosquitto.org) as an MQTT server. It is pretty simple to set up. At first, [download the software](https://mosquitto.org/download/) or install it using a package manager. For Ubuntu, you can simply install it via:
 
@@ -478,7 +484,7 @@ After that, [create a user](https://mosquitto.org/man/mosquitto_passwd-1.html) s
 mosquitto_passwd -c /etc/mosquitto/passwd mqttuser [password]
 ```
 
-Next, we will need to configure the server. On Ubuntu, the configuration file could be found at `/etc/mosquitto/conf.d/default.conf`. Open it using your favourite editor and set up the password authentication:
+Next, we will need to configure the server. On Ubuntu, the configuration file could be found at `/etc/mosquitto/conf.d/default.conf`. Open it using your favorite editor and set up the password authentication:
 
 ```
 # disable anonymous login

@@ -10,10 +10,18 @@ categories: hardware
 # Intro
 
 I live pretty far away from the office, so my commute can take from 2.5 to 4 hours a day 😱. That includes a lot of time walking. I lost the count of times when I forgot to check if there was rain when going out from home. Or, even worse, the rain came in when I was midway to the train station. As a plus, the Weather app on my iPhone is not very good at making accurate forecasts. It can easily convince me that there is sunny outside when a sneaky rain starts to drop.
+<!--more--> 
+A couple of months ago I started digging into electronics, microcontrollers, and PCBs, so a side-project idea naturally came up to a surface. I'll create a simple weather station that will check humidity and temperature outside every morning and notify me if I need to take an umbrella or warm clothes. This is a fun and easy IoT project from the hardware perspective, so I decided to give it a try.
 
-A couple of months ago I started diving into the electronics, microcontrollers, and PCBs, so a side-project idea naturally came up to a surface. I'll create a simple weather station that will check humidity and temperature outside every morning and notify me if I need to take an umbrella or warm clothes. This is a fun and easy IoT project from the hardware perspective, so I decided to give it a try.
+In this series of posts, we will cover how to build an IoT weather station powered up by a web dashboard and Telegram bot. We will start from the birds-eye view first and cover the architecture of what we are going to make. 
 
-In this series of posts, we will cover how to build an IoT weather station powered up by a web dashboard and Telegram bot. We will start from the birds-eye view first and cover the architecture of what we are going to make. <!--more--> 
+# Table of Contents
+
+1. → Build yourself a weather station. Part I
+1. [Building yourself a weather station. Part 2](/articles/hardware/build-yourself-a-weathe-station-part-2)
+1. [Async Unicorns love Rust](/articles/rust/async-unicorns-love-rust)
+1. [Building a Weather Station Bot](/articles/rust/building-a-weather-station-bot)
+1. [Building a Weather Station UI](/articles/rust/ui/weather-station-ui)
 
 # Architecture
 
@@ -65,7 +73,7 @@ To build this project you will need:
 
 - A ESP32 development board. I used [ESP32 WROOM devkit](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/hw-reference/modules-and-boards.html#esp32-devkitc-v4)
 
-- [BME 280 sensor](https://aliexpress.ru/wholesale?catId=0&initiative_id=SB_20200531195228&SearchText=bme280). I strongly recommend using a breakout board since the sensor itself is very small{% sidenote 3 "If you will order a Chinese breakout board for the sensor you might need to solder pins to the board. It isn't  hard, but make sure that you have necessary soldering equipment at hand. If you do not know how to solder, refer to the multitude  of guides and videos over the internet. For example, [this one](https://www.makerspaces.com/how-to-solder/)" %}. It can use widely supported SPI and I2C protocols for communication with other PCBs
+- [BME 280 sensor](https://aliexpress.ru/wholesale?catId=0&initiative_id=SB_20200531195228&SearchText=bme280). I strongly recommend using a breakout board since the sensor itself is very small{% sidenote 3 "If you will order a Chinese breakout board for the sensor you might need to solder pins to the board. It isn't  hard, but make sure that you have the necessary soldering equipment at hand. If you do not know how to solder, refer to the multitude  of guides and videos over the internet. For example, [this one](https://www.makerspaces.com/how-to-solder/)" %}. It can use widely supported SPI and I2C protocols for communication with other PCBs
 - 3.3V or 5V micro USB power source for the ESP32 board. I use a simple power bank that you regularly use to charge your phone{% sidenote 4 "Another option is to use a power cell. It is a slightly more complicated setup, which I will cover in another post
 " %}
 - A set of jumping wires to connect the sensor to the devboard
@@ -77,7 +85,7 @@ To build this project you will need:
 
 The wiring is not complicated, you will need to connect the BME280 sensor to the board and power it up. You do not have to wire up a power source since the dev board can be powered via micro the USB port. You can simply connect it to your PC, phone charger, or a power bank. 
 
-The next part that's still in the mist is how the sensor communicates with our ESP32 board. Like software that has a TCP/IP or UDP stack for inter-device communication, hardware has a set of commonly used protocols for data transfer. We will use the I2C (Inter-Integrated Circuit) protocol for communications since it means fewer wires and leads to less complicated setup. I2C is meant for data transfer between multiple devices that are closely placed, which fits our case perfectly{% sidenote 5 "Another option we have is to use [SPI](https://en.wikipedia.org/wiki/Serial_Peripheral_Interface) (Serial Peripheral Interface), but it requires more wires, so we will go with the more economic option to save pins on our ESP32 board" %}.
+The next part that's still in the mist is how the sensor communicates with our ESP32 board. Like software that has a TCP/IP or UDP stack for inter-device communication, hardware has a set of commonly used protocols for data transfer. We will use the I2C (Inter-Integrated Circuit) protocol for communications since it means fewer wires and leads to a less complicated setup. I2C is meant for data transfer between multiple devices that are closely placed, which fits our case perfectly{% sidenote 5 "Another option we have is to use [SPI](https://en.wikipedia.org/wiki/Serial_Peripheral_Interface) (Serial Peripheral Interface), but it requires more wires, so we will go with the more economic option to save pins on our ESP32 board" %}.
 
 You can see SDA (red) and SCL (yellow) lines that are connected to BME280 on the schematics. Those will be used for communication between our ESP32 board and the sensor. 
 
@@ -89,7 +97,7 @@ I2C is a synchronous communication protocol that allows multiple devices to exch
 
 All frames and clock signals are sent in binary format. To achieve this, a set of thresholds is selected. For example, if the voltage on the wire is between 0.4V and 0.8V it is considered 0, and if it is from 2V to 2.7V then it is considered high. All other values are considered to be invalid.  Different microcontrollers use different thresholds, so there are a few common sets of thresholds.  Concrete values are not important for our purposes as long as you catch the main point.
 
-Let's expand a bit on what do we mean by saying "clock". It is actually no more than a periodic pulse of some predetermined frequency{% sidenote 6 "Most I2C devices can communicate at  the clock rate of 100kHz or 400kHz" %}. By itself, the clock is not very useful, but combined with the second wire SDA it allows for data transfer between one or more primary devices called masters and multiple secondary devices called slaves. In the idle state, the clock is constantly pulsing, while the SDA line is set to 1 in idle state.
+Let's expand a bit on what do we mean by saying "clock". It is actually no more than a periodic pulse of some predetermined frequency{% sidenote 6 "Most I2C devices can communicate at  the clock rate of 100kHz or 400kHz" %}. By itself, the clock is not very useful, but combined with the second wire SDA it allows for data transfer between one or more primary devices called masters and multiple secondary devices called slaves. In the idle state, the clock is constantly pulsing, while the SDA line is set to 1 in the idle state.
 
 
 {% maincolumn  assets/img/esp32-weather-station/post-1/i2c-Clock.png %}
@@ -115,6 +123,6 @@ The following one or more frames are **data frames**, which also contain 8 bis o
 
 At this point, we have outlined out architecture and tech stack, chose and wired up the hardware and got into how integrated circuits can communicate between each other using two wires and I2C protocol.
 
-In the next post we will harness the power of ESP32 by writing a firmware which will collect data from BME280 and send it to our MQTT server via wireless network. Subscribe to the RSS feed to get notified when the next post comes out.
+In the next post we will harness the power of ESP32 by writing firmware which will collect data from BME280 and send it to our MQTT server via a wireless network. Subscribe to the RSS feed to get notified when the next post comes out.
 
 Next post in the series: [Coding For ESP32]({% post_url 2020-06-21-build-yourself-a-weathe-station-part-2 %})

@@ -11,7 +11,13 @@ When we will write a Telegram bot with Rust, we will use a technique called asyn
 
 <!--more-->
 
-Previous post in the series: [Coding For ESP32]({% post_url 2020-06-21-build-yourself-a-weathe-station-part-2 %})
+# Table of Contents
+
+1. [Build yourself a weather station. Part I](/articles/hardware/build-yourself-a-weather-station)
+1. [Building yourself a weather station. Part 2](/articles/hardware/build-yourself-a-weathe-station-part-2)
+1. → Async Unicorns love Rust
+1. [Building a Weather Station Bot](/articles/rust/building-a-weather-station-bot)
+1. [Building a Weather Station UI](/articles/rust/ui/weather-station-ui)
 
 ## Selling unicorns. Synchronously
 
@@ -96,7 +102,7 @@ let response = Command::new("curl")
 
 If our unicorn shop app needs to communicate with tens or hundreds of different shops, then processes might solve our issue. However, if we will scale to thousands of shops (for which I have absolutely no doubt), then processes will start to feel show and sluggish.
 
-The more lightweight concept of threads comes to our rescue. Think of them as a set of lightweight mini-processes inside your large process. Threads are much faster to create and destroy. Also, they share memory access, so you won't need to use expensive I/O-based communication protocols just to share information inside your own application. Howewer, all this power comes with a grain of salt.
+The more lightweight concept of threads comes to our rescue. Think of them as a set of lightweight mini-processes inside your large process. Threads are much faster to create and destroy. Also, they share memory access, so you won't need to use expensive I/O-based communication protocols just to share information inside your own application. However, all this power comes with a grain of salt.
 
 {% maincolumn 'assets/img/esp32-weather-station/post-3-rust-async/salt-mine.jpg' %}
 
@@ -188,7 +194,7 @@ This functionality can be leveraged to avoid blocking on the I/O code in a singl
 
 As you can see, the event loop operates by observing events and executing tasks. A task can be thought of as an abstraction over a block of code. The event loop works by observing I/O events from the operating system and executing tasks that read or write data. 
 
-This model introduces a significant drawback compared to the traditional approach: the event loop runs in a single thread. This means that if our tasks contain anything but I/O operations their execution will block the entire event loop. That leads to a conclusion: if your application uses a lot of I/O requests, it will get a big performance boost from using the event loop approach. However, if it is CPU-heavy and uses lots of computational resources, it will block the event loop too much for it to provide any benefit. Modern asynchronous libraries provide a way to fight this by providing additional thread pool which can be used to execute blocking tasks without stopping the event loop.
+This model introduces a significant drawback compared to the traditional approach: the event loop runs in a single thread. This means that if our tasks contain anything but I/O operations their execution will block the entire event loop. That leads to a conclusion: if your application uses a lot of I/O requests, it will get a big performance boost from using the event loop approach. However, if it is CPU-heavy and uses lots of computational resources, it will block the event loop too much for it to provide any benefit. Modern asynchronous libraries provide a way to fight this by providing an additional thread pool which can be used to execute blocking tasks without stopping the event loop.
 
 Another important part of the solution is the asynchronous programming paradigm. Modern programming languages simplify working with asynchronous code by providing special syntax constructs. For example, Rust allows us to define `async` closures and functions. 
 
@@ -212,7 +218,7 @@ The above example is from from the [Asynchronous Programming In Rust](https://ru
 
 Each asynchronous function returns a `Future`, a special construct that designates a result, which will be returned sometime in the future. Notice that the `hello_world` function will not be executed until we `block_on` the future.
 
-In practice, we will work with a [tokio](https://docs.rs/tokio/) crate, which implements the event loop pattern and wraps `mio` library that uses the underlying operating system's asynchronous I/O implementatein and wraps it in a convenient interface. Another important library we will use in the ESP weather station project is [tbot](https://tbot.rs), a Telegram bot library built on top of `tokio`. Let's look at how to build a simple bot with it:
+In practice, we will work with a [tokio](https://docs.rs/tokio/) crate, which implements the event loop pattern and wraps the` mio` library that uses the underlying operating system's asynchronous I/O implementation and wraps it in a convenient interface. Another important library we will use in the ESP weather station project is [tbot](https://tbot.rs), a Telegram bot library built on top of `tokio`. Let's look at how to build a simple bot with it:
 
 ```rust
 use tbot::prelude::*;
@@ -257,17 +263,17 @@ Notice the `#[tokio::main]` macro. According to the documentation, it "marks asy
 
 # Wrapping up
 
-Now, we can scale our small unicorn shop to be a global bot-powered marketplace where buyers and sellers can satisfy their unicorn needs 24/7, worldwide by using an asynchronous programming model. Apart from that, that's all we needed to cover to start developing a chat bot for our weather statio.
+Now, we can scale our small unicorn shop to be a global bot-powered marketplace where buyers and sellers can satisfy their unicorn needs 24/7, worldwide by using an asynchronous programming model. Apart from that, that's all we needed to cover to start developing a chat bot for our weather station.
 
 We have looked at three ways of dealing with I/O in our application:
 
 1. Synchronous I/O, where everything happens in the same thread
-2. Threaded I/O, where we offload I/O work to a different thread by paying a cost of creating threads and switching between them
-3. Asynchronous I/O, where we use the event loop pattern to offload the I/O work to the operating system and receive notifications via special APIs such as linux's `epoll` when our I/O requests are done
+2. Threaded I/O, where we offload I/O work to a different thread by paying the cost of creating threads and switching between them
+3. Asynchronous I/O, where we use the event loop pattern to offload the I/O work to the operating system and receive notifications via special APIs such as Linux `epoll` when our I/O requests are done
 
-While providing extremely fast I/O, asynchronous paradigm is not without its drawbacks:
+While providing extremely fast I/O, the asynchronous paradigm is not without its drawbacks:
 
-- It is harder to read, write and maintain async coode
+- It is harder to read, write and maintain async code
 - Async I/O benefits diminish with the amount of CPU-heavy computations you need to make
 
 In the [next post](https://blog.kdubovikov.ml/articles/rust/building-a-weather-station-bot), we will be looking at how to build a Telegram bot for our weather station using Rust as a programming language, Tokio as an async I/O library and tbot as a Telegram bot framework.

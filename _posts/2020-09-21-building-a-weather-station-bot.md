@@ -9,8 +9,16 @@ categories: rust
 In this post we are going to switch from hardware to software and write a telegram bot that will be the primary user interface for our weather station.
 <!--more-->
 
+# Table of Contents
+
+1. [Build yourself a weather station. Part I](/articles/hardware/build-yourself-a-weather-station)
+1. [Building yourself a weather station. Part 2](/articles/hardware/build-yourself-a-weathe-station-part-2)
+1. [Async Unicorns love Rust](/articles/rust/async-unicorns-love-rust)
+1. → Building a Weather Station Bot
+1. [Building a Weather Station UI](/articles/rust/ui/weather-station-ui)
+
 # Writing a Weather Station Bot
-In the [previous post](https://blog.kdubovikov.ml/articles/rust/async-unicorns-love-rust) we have covered the basics of the asynchronous programming in Rust, which will allow us to write a telegram bot that reads measurements from MQTT server and send notification messages to Telegram. The complete source code for this post is hosted in a [GitHub repository which you can access by following this link](https://github.com/kdubovikov/weather-station-bot).
+In the [previous post](https://blog.kdubovikov.ml/articles/rust/async-unicorns-love-rust) we have covered the basics of asynchronous programming in Rust, which will allow us to write a telegram bot that reads measurements from the MQTT server and send notification messages to Telegram. The complete source code for this post is hosted in a [GitHub repository which you can access by following this link](https://github.com/kdubovikov/weather-station-bot).
 
 This project will use a few libraries which will greatly simplify our work:
 
@@ -25,11 +33,11 @@ We will also use a tbot framework for writing a bot. Tbot is based on tokio, tha
 
 We will also use a library called [rumq-client](https://docs.rs/rumq-client/0.1.0-alpha.10/rumq_client/index.html) for communicating with our Mosquitto MQTT server.
 
-We will package our bot as a command-line application which supports file-based configuration. Packages like clap and settings will help us to quickly implement config files and parsing command line arguments.
+We will package our bot as a command-line application which supports file-based configuration. Packages like clap and settings will help us to quickly implement config files and parsing command-line arguments.
 
 ## Designing a database
 
-First, let's look at `[schema.rs](http://schema.rs)` file which contain's our database table definitions. Based on this metadata diesel will be able to generate SQL migrations that create the tables in our DB, so we do not need to do this by hand. Those definitions also will be used by diesel to automatically create queries to the DB.
+First, let's look at the `[schema.rs](http://schema.rs)` file which contains our database table definitions. Based on this metadata diesel will be able to generate SQL migrations that create the tables in our DB, so we do not need to do this by hand. Those definitions also will be used by diesel to automatically create queries to the DB.
 
 ```rust
 table! {
@@ -112,7 +120,7 @@ pub struct NewSubscriber {
 }
 ```
 
-Please note, that we can use `table_name` attribute to deliberately tell diesel which table to use as a backing storage for a struct.
+Please note, that we can use the `table_name` attribute to deliberately tell diesel which table to use backing storage for a struct.
 
 Next, we need to define some basic functions to work with subscriptions:
 
@@ -143,9 +151,9 @@ pub fn unsubscribe(chat_id: i64, connection: &SqliteConnection) -> QueryResult<u
 
 ### Weather messages
 
-Now, it is time to define structures related to weather messages. It is important to mention that the design process of this kind of API is in general done in backwards. Instead of writing the DB code as a first step, it is more natural to write the bot first, deciding on which functionality you will need from the DB layer in ad-hoc manner. However, it is a lot easier to explain how everything works starting from the data model, so we will go through that first.
+Now, it is time to define structures related to weather messages. It is important to mention that the design process of this kind of API is in general done backwards. Instead of writing the DB code as a first step, it is more natural to write the bot first, deciding on which functionality you will need from the DB layer in an ad-hoc manner. However, it is a lot easier to explain how everything works starting from the data model, so we will go through that first.
 
-We will separate MQTT message format from the internal one to keep our backend decoupled from edge-device message format:
+We will separate the MQTT message format from the internal one to keep our backend decoupled from the edge-device message format:
 
 ```rust
 /// This structure represents weather data that we read from SQLlite
@@ -278,7 +286,7 @@ If you need more info abut diesel, I suggest going through their [Getting Starte
 
 ## Writing a bot
 
-Now, let's go on to the most interesting part: writing a telegram bot. We will go through a fairly long listing of bot's `main` function, so I'll break it in pieces for better clarity. First, we will setup our command line arguments parsing using `clap` crate:
+Now, let's go on to the most interesting part: writing a telegram bot. We will go through a fairly long listing of the bot's `main` function, so I'll break it in pieces for better clarity. First, we will setup our command-line arguments parsing using the `clap` crate:
 
 ```rust
 // Main WeatherStation Telegram bot fucntion
@@ -347,7 +355,7 @@ Then, let's spawn a function that will read incoming messages from our MQTT queu
     });
 ```
 
-Here it the MQTT related code that does all of the actual job:
+Here it the MQTT related code that does the actual job:
 
 ```rust
 /// Connects to MQTT server using [Settings](settings::Settings) structure. The settings are meant to be read from config TOML file

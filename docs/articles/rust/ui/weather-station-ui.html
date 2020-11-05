@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html>
+  <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>Building a Weather Station UI</title>
+  <meta name="description" content="In this last post of the series we are going to look at how to build a simple weather station UI dashboard.">
+
+  <!-- Google Fonts loaded here depending on setting in _data/options.yml true loads font, blank does not-->
+  
+    <link href='//fonts.googleapis.com/css?family=Lato:400,400italic' rel='stylesheet' type='text/css'>
+  
+  
+  <!-- Load up MathJax script if needed ... specify in /_data/options.yml file-->
+  
+    <script type="text/javascript" src="//cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+  
+
+  <link rel="stylesheet" type="text/css" href="/css/tufte.css">
+  <!-- <link rel="stylesheet" type="text/css" href="/css/print.css" media="print"> -->
+
+  <link rel="canonical" href="/articles/rust/ui/weather-station-ui">
+
+  <link rel="alternate" type="application/rss+xml" title="Kirill Dubovikov" href="/feed.xml" />
+  <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" >
+  <link rel="stylesheet" href="/css/animate.css" />
+
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@8.4.0/dist/mermaid.min.js"></script>
+  <script src="/scripts/wow.min.js"></script>
+  <script>
+  new WOW().init();
+  </script>
+
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=UA-166077200-1"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'UA-166077200-1');
+  </script>
+
+  <script data-name="BMC-Widget" src="https://cdnjs.buymeacoffee.com/1.0.0/widget.prod.min.js" data-id="kdubovikov" data-description="Support me" data-message="Support this blog" data-color="#D7CDCC" data-position="right" data-x_margin="40" data-y_margin="18"></script>
+</head>
+
+  <body>
+    <!--- Header and nav template site-wide -->
+<header>
+    <nav class="group">
+	<div class="head-social-links">
+	
+	
+		
+		    
+		      <a href="/css/print.css"></a>
+		    
+	    
+  	
+		
+  	
+		
+		    
+		      <a href="/feed.xml"></a>
+		    
+	    
+  	
+		
+		    
+		      <a href="/">Kirill Dubovikov</a>
+		    
+	    
+  	
+		
+		    
+		      <a href="/categories/">Categories</a>
+		    
+	    
+  	
+    
+        <a class="social-link" href="//www.twitter.com/kdubovikov"><span class="icon-twitter"/></a>
+    
+        <a class="social-link" href="//github.com/kdubovikov"><span class="icon-github"/></a>
+    
+        <a class="social-link" href="//linkedin.com/in/kirill-dubovikov-2a20b154/"><span class="icon-linkedin"/></a>
+      
+	</div>
+	</nav>
+</header>
+    <article class="group">
+      <h1 class="contrast">Building a Weather Station UI</h1>
+<p class="subtitle">November 4, 2020</p>
+
+<p>In this last post of the series we are going to look at how to build a simple weather station UI dashboard.</p>
+
+<!--more-->
+
+<h1 id="table-of-contents">Table of Contents</h1>
+
+<ol>
+  <li><a href="/articles/hardware/build-yourself-a-weather-station">Build yourself a weather station. Part I</a></li>
+  <li><a href="/articles/hardware/build-yourself-a-weathe-station-part-2">Building yourself a weather station. Part 2</a></li>
+  <li><a href="/articles/rust/async-unicorns-love-rust">Async Unicorns love Rust</a></li>
+  <li><a href="/articles/rust/building-a-weather-station-bot">Building a Weather Station Bot</a></li>
+  <li>→ Building a Weather Station UI</li>
+</ol>
+
+<h1 id="lets-build-a-user-interface">Let’s build a user interface</h1>
+<p>In <a href="/articles/rust/building-a-weather-station-bot">the previous post</a> we have built a weather station bot that can notify us about new measurements made by our weather station. Today, we are going to build a simple REST API to fetch the data from our server and draw a chart on a simple dashboard.</p>
+
+<h1 id="rest-api">REST API</h1>
+<p>Our web interface will need historical data that will be displayed in the charts. Before building an actual UI we will create a REST API that will return all sensor readings that are stored in our database. The code for the API is located in the <a href="https://github.com/kdubovikov/weather-station-bot/blob/master/src/bin/weather_station_api.rs"><code class="highlighter-rouge">weather_station_api.rs</code></a> file. We will use the <a href="https://docs.rs/tower-web/0.3.7/tower_web/">tower_web</a> crate to create a service that will return all sensor measurements along with their timestamps. We already have the database related code covered in the previous post. The entire service code is very concise:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">/// This type will be part of the web service as a resource.</span>
+<span class="nd">#[derive(Clone,</span> <span class="nd">Debug)]</span>
+<span class="k">struct</span> <span class="n">WeatherApi</span><span class="p">;</span>
+
+<span class="c">/// This will be the JSON response</span>
+<span class="nd">#[derive(Response)]</span>
+<span class="k">struct</span> <span class="n">WeatherMessageResponse</span> <span class="p">{</span>
+    <span class="n">messages</span><span class="p">:</span> <span class="nb">Vec</span><span class="o">&lt;</span><span class="n">WeatherMessage</span><span class="o">&gt;</span>
+<span class="p">}</span>
+
+<span class="nd">impl_web!</span> <span class="p">{</span>
+    <span class="k">impl</span> <span class="n">WeatherApi</span> <span class="p">{</span>
+        <span class="nd">#[get(</span><span class="s">"/"</span><span class="nd">)]</span>
+        <span class="nd">#[content_type(</span><span class="s">"json"</span><span class="nd">)]</span>
+        <span class="k">fn</span> <span class="nf">get_all_weather_messages</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">Result</span><span class="o">&lt;</span><span class="n">WeatherMessageResponse</span><span class="p">,</span> <span class="p">()</span><span class="o">&gt;</span> <span class="p">{</span>
+            <span class="k">let</span> <span class="n">conn</span> <span class="o">=</span> <span class="nf">establish_connection</span><span class="p">(</span><span class="s">"./db.sqlite"</span><span class="p">);</span> <span class="c">// this is a magic string better to be left in a config file, but I'll let it as it is for the sake of simplicity</span>
+            <span class="k">let</span> <span class="n">weather_messages</span> <span class="o">=</span> <span class="nf">get_all_weather_messages</span><span class="p">(</span><span class="o">&amp;</span><span class="n">conn</span><span class="p">);</span>
+            <span class="nf">Ok</span><span class="p">(</span>
+               <span class="n">WeatherMessageResponse</span> <span class="p">{</span> <span class="n">messages</span><span class="p">:</span> <span class="n">weather_messages</span> <span class="p">}</span>
+            <span class="p">)</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>After that all we need is to run the server somewhere inside our <code class="highlighter-rouge">main</code> function:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">cors</span> <span class="o">=</span> <span class="nn">CorsBuilder</span><span class="p">::</span><span class="nf">new</span><span class="p">()</span>
+        <span class="nf">.allow_origins</span><span class="p">(</span><span class="nn">AllowedOrigins</span><span class="p">::</span><span class="n">Any</span> <span class="p">{</span> <span class="n">allow_null</span><span class="p">:</span> <span class="k">true</span> <span class="p">}</span> <span class="p">)</span>
+        <span class="nf">.build</span><span class="p">();</span>
+
+<span class="nn">ServiceBuilder</span><span class="p">::</span><span class="nf">new</span><span class="p">()</span>
+    <span class="nf">.resource</span><span class="p">(</span><span class="n">WeatherApi</span><span class="p">)</span>
+    <span class="nf">.middleware</span><span class="p">(</span><span class="n">cors</span><span class="p">)</span>
+    <span class="nf">.run</span><span class="p">(</span><span class="o">&amp;</span><span class="n">addr</span><span class="p">)</span>
+    <span class="nf">.unwrap</span><span class="p">();</span>
+</code></pre></div></div>
+
+<p>You can check that the API works as intended by running the server and issuing an HTTP GET request with <code class="highlighter-rouge">curl</code> or <a href="https://www.postman.com">Postman</a>.</p>
+
+<h1 id="creating-a-ui-dashboard">Creating a UI Dashboard</h1>
+<p>Now, let’s create a simple UI Dashboard. The purpose of our interface will be to display a historical plot of temperature, humidity and pressure readings from our weather station. We won’t use any complex javascript frameworks and stick to vanilla javascript. This is how the final result will look like:</p>
+
+<figure class="fullwidth"><img src="/assets/img/esp32-weather-station/post-1/weather-dashboard.gif" /><figcaption></figcaption></figure>
+
+<h2 id="markup">Markup</h2>
+<p>For a start, let’s look at <code class="highlighter-rouge">index.html</code>:</p>
+
+<div class="language-html highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nt">&lt;html&gt;</span>
+<span class="nt">&lt;head&gt;</span>
+	<span class="nt">&lt;link</span> <span class="na">rel=</span><span class="s">"stylesheet"</span> <span class="na">href=</span><span class="s">"styles/weather_station.css"</span> <span class="nt">/&gt;</span>
+	
+    <span class="c">&lt;!-- load fonts --&gt;</span>
+	<span class="nt">&lt;link</span> <span class="na">href=</span><span class="s">"https://fonts.googleapis.com/css2?family=Open+Sans:wght@300&amp;display=swap"</span> <span class="na">rel=</span><span class="s">"stylesheet"</span><span class="nt">&gt;</span>
+    
+    <span class="c">&lt;!-- a few libraries that we will use --&gt;</span>
+    <span class="c">&lt;!-- a css framework for animations --&gt;</span>
+	<span class="nt">&lt;link</span> <span class="na">rel=</span><span class="s">"stylesheet"</span> <span class="na">href=</span><span class="s">"https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.0.0/animate.min.css"</span> <span class="nt">/&gt;</span>
+
+    <span class="c">&lt;!-- chart.js for plots --&gt;</span>
+	<span class="nt">&lt;script </span><span class="na">src=</span><span class="s">"https://cdn.jsdelivr.net/npm/chart.js@2.9.3/dist/Chart.min.js"</span><span class="nt">&gt;&lt;/script&gt;</span>
+
+    <span class="c">&lt;!-- moment.js for working with dates --&gt;</span>
+	<span class="nt">&lt;script </span><span class="na">src=</span><span class="s">"https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.26.0/moment.min.js"</span><span class="nt">&gt;&lt;/script&gt;</span>
+
+    <span class="c">&lt;!-- our main script, we will look into this later 😉 --&gt;</span>
+	<span class="nt">&lt;script </span><span class="na">src=</span><span class="s">"index.js"</span><span class="nt">&gt;&lt;/script&gt;</span>
+<span class="nt">&lt;/head&gt;</span>
+<span class="nt">&lt;body&gt;</span>
+    <span class="c">&lt;!-- let's use HTML5 section tags to group --&gt;</span>
+    <span class="c">&lt;!-- related content together instead of using ambiguous div's --&gt;</span>
+	<span class="nt">&lt;header&gt;</span>
+		<span class="nt">&lt;div</span> <span class="na">class=</span><span class="s">"weatherIcon"</span><span class="nt">&gt;</span>
+			<span class="nt">&lt;object</span> <span class="na">data=</span><span class="s">"img/weather_icon.svg"</span> <span class="na">type=</span><span class="s">"image/svg+xml"</span><span class="nt">&gt;&lt;/object&gt;</span>
+		<span class="nt">&lt;/div&gt;</span>
+		
+		<span class="nt">&lt;h1&gt;</span>How's the <span class="nt">&lt;span</span> <span class="na">class=</span><span class="s">"accent"</span><span class="nt">&gt;</span>weather<span class="nt">&lt;/span&gt;</span>?<span class="nt">&lt;/h1&gt;</span>
+	<span class="nt">&lt;/header&gt;</span>
+	
+	<span class="nt">&lt;section&gt;</span>
+        <span class="c">&lt;!-- this is a group of radio buttons --&gt;</span> s
+        <span class="c">&lt;!-- that user can click to switch between different metrics --&gt;</span>
+		<span class="nt">&lt;div</span> <span class="na">class=</span><span class="s">"group"</span><span class="nt">&gt;</span>
+			<span class="nt">&lt;input</span> <span class="na">type=</span><span class="s">"radio"</span> <span class="na">name=</span><span class="s">"rb"</span> <span class="na">id=</span><span class="s">"temp_radio"</span> <span class="nt">/&gt;</span>
+		    <span class="nt">&lt;label</span> <span class="na">for=</span><span class="s">"temp_radio"</span><span class="nt">&gt;</span>Temperature<span class="nt">&lt;/label&gt;</span>
+		    <span class="nt">&lt;input</span> <span class="na">type=</span><span class="s">"radio"</span> <span class="na">name=</span><span class="s">"rb"</span> <span class="na">id=</span><span class="s">"humidity_radio"</span> <span class="nt">/&gt;</span>
+		    <span class="nt">&lt;label</span> <span class="na">for=</span><span class="s">"humidity_radio"</span><span class="nt">&gt;</span>Humidity<span class="nt">&lt;/label&gt;</span>
+		    <span class="nt">&lt;input</span> <span class="na">type=</span><span class="s">"radio"</span> <span class="na">name=</span><span class="s">"rb"</span> <span class="na">id=</span><span class="s">"pressure_radio"</span> <span class="nt">/&gt;</span>
+		    <span class="nt">&lt;label</span> <span class="na">for=</span><span class="s">"pressure_radio"</span><span class="nt">&gt;</span>Pressure<span class="nt">&lt;/label&gt;</span>
+		<span class="nt">&lt;/div&gt;</span>
+		
+        <span class="c">&lt;!-- a canvas that we will pass on to chart.js in our main script --&gt;</span>
+		<span class="nt">&lt;div</span> <span class="na">class=</span><span class="s">"chartContainer"</span><span class="nt">&gt;</span>
+			<span class="nt">&lt;canvas</span> <span class="na">id=</span><span class="s">"tempChart"</span> <span class="na">width=</span><span class="s">"50"</span> <span class="na">height=</span><span class="s">"50"</span><span class="nt">&gt;&lt;/canvas&gt;</span>
+		<span class="nt">&lt;/div&gt;</span>
+	<span class="nt">&lt;/section&gt;</span>
+<span class="nt">&lt;/body&gt;</span>
+<span class="nt">&lt;/html&gt;</span>
+</code></pre></div></div>
+
+<h2 id="ui-logic">UI logic</h2>
+<p>Having finished with the markup we now can transition to making our dashboard to be useful by implementing some logic in the <code class="highlighter-rouge">index.js</code> script. As a headstart, let’s start from the top abstraction level and look what the code does in overall:</p>
+
+<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">const</span> <span class="nx">API_URL</span> <span class="o">=</span> <span class="dl">"</span><span class="s2">http://localhost:8080</span><span class="dl">"</span><span class="p">;</span>
+
+<span class="c1">// this will be called by browser as soon as</span>
+<span class="c1">// all necessary resources were loaded and the page</span>
+<span class="c1">// is ready to render</span>
+<span class="nb">window</span><span class="p">.</span><span class="nx">onload</span> <span class="o">=</span> <span class="k">async</span> <span class="p">()</span> <span class="o">=&gt;</span> <span class="p">{</span>
+    <span class="c1">// fetch data from our API</span>
+    <span class="c1">// we use asynchronous calls to block execution only when necessary</span>
+    <span class="kd">const</span> <span class="nx">data</span> <span class="o">=</span> <span class="k">await</span> <span class="p">(</span><span class="k">await</span> <span class="nx">fetch</span><span class="p">(</span><span class="nx">API_URL</span><span class="p">)).</span><span class="nx">json</span><span class="p">()</span>
+
+    <span class="c1">// convert timestamps to the label format we want to use in our charts</span>
+    <span class="kd">const</span> <span class="nx">labels</span> <span class="o">=</span> <span class="nx">data</span><span class="p">.</span><span class="nx">messages</span><span class="p">.</span><span class="nx">map</span><span class="p">(</span><span class="nx">item</span> <span class="o">=&gt;</span> <span class="nx">moment</span><span class="p">(</span><span class="nx">item</span><span class="p">.</span><span class="nx">timestamp</span><span class="p">).</span><span class="nx">format</span><span class="p">(</span><span class="dl">'</span><span class="s1">ddd HH a</span><span class="dl">'</span><span class="p">));</span>
+
+    <span class="c1">// render chart</span>
+    <span class="kd">let</span> <span class="nx">chart</span> <span class="o">=</span> <span class="nx">createChart</span><span class="p">(</span><span class="nx">labels</span><span class="p">,</span> <span class="nx">data</span><span class="p">);</span>
+
+    <span class="c1">// create handlers for radio buttons that can be used to select different metrics</span>
+    <span class="c1">// that will be displayed on the chart</span>
+    <span class="nb">document</span><span class="p">.</span><span class="nx">getElementById</span><span class="p">(</span><span class="dl">"</span><span class="s2">temp_radio</span><span class="dl">"</span><span class="p">).</span><span class="nx">onclick</span> <span class="o">=</span> <span class="p">()</span> <span class="o">=&gt;</span> <span class="p">{</span>
+        <span class="c1">// this call will prepare data to be used in a </span>
+        <span class="c1">// format that chart.js expects as an input</span>
+        <span class="kd">const</span> <span class="nx">tempData</span> <span class="o">=</span> <span class="nx">createChartDataset</span><span class="p">(</span><span class="nx">data</span><span class="p">,</span> <span class="dl">'</span><span class="s1">temp</span><span class="dl">'</span><span class="p">);</span>
+
+        <span class="c1">// this function will update the initialized chart with</span>
+        <span class="c1">// new data, along with its minimal and maximal bounds</span>
+        <span class="nx">updateChart</span><span class="p">(</span><span class="nx">chart</span><span class="p">,</span> <span class="nx">tempData</span><span class="p">,</span> <span class="nx">tempData</span><span class="p">.</span><span class="nx">min</span> <span class="o">-</span> <span class="mi">5</span><span class="p">,</span> <span class="nx">tempData</span><span class="p">.</span><span class="nx">max</span> <span class="o">+</span> <span class="mi">5</span><span class="p">);</span>
+    <span class="p">};</span>
+
+    <span class="nb">document</span><span class="p">.</span><span class="nx">getElementById</span><span class="p">(</span><span class="dl">"</span><span class="s2">pressure_radio</span><span class="dl">"</span><span class="p">).</span><span class="nx">onclick</span> <span class="o">=</span> <span class="p">()</span> <span class="o">=&gt;</span> <span class="p">{</span>
+        <span class="kd">const</span> <span class="nx">pressureData</span> <span class="o">=</span> <span class="nx">createChartDataset</span><span class="p">(</span><span class="nx">data</span><span class="p">,</span> <span class="dl">'</span><span class="s1">pressure</span><span class="dl">'</span><span class="p">);</span>
+        <span class="nx">updateChart</span><span class="p">(</span><span class="nx">chart</span><span class="p">,</span> <span class="nx">pressureData</span><span class="p">,</span> <span class="mi">700</span><span class="p">,</span> <span class="nx">pressureData</span><span class="p">.</span><span class="nx">max</span> <span class="o">+</span> <span class="mi">10</span><span class="p">);</span>
+    <span class="p">};</span>
+
+    <span class="nb">document</span><span class="p">.</span><span class="nx">getElementById</span><span class="p">(</span><span class="dl">"</span><span class="s2">humidity_radio</span><span class="dl">"</span><span class="p">).</span><span class="nx">onclick</span> <span class="o">=</span> <span class="p">()</span> <span class="o">=&gt;</span> <span class="p">{</span>
+        <span class="kd">const</span> <span class="nx">humidityData</span> <span class="o">=</span> <span class="nx">createChartDataset</span><span class="p">(</span><span class="nx">data</span><span class="p">,</span> <span class="dl">'</span><span class="s1">humidity</span><span class="dl">'</span><span class="p">);</span>
+        <span class="nx">updateChart</span><span class="p">(</span><span class="nx">chart</span><span class="p">,</span> <span class="nx">humidityData</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">100</span><span class="p">);</span>
+    <span class="p">};</span>
+
+    <span class="c1">// set default metric to temperature</span>
+    <span class="nb">document</span><span class="p">.</span><span class="nx">getElementById</span><span class="p">(</span><span class="dl">'</span><span class="s1">temp_radio</span><span class="dl">'</span><span class="p">).</span><span class="nx">click</span><span class="p">();</span>
+<span class="p">};</span>
+</code></pre></div></div>
+
+<p>Now that we have seen the whole picture, let’s look at how the individual functions work. We will start with <code class="highlighter-rouge">createChart</code>, that uses our canvas to display a plot using chart.js library:</p>
+
+<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cm">/**
+ * Creates a new chart
+ * @param {Array.&lt;string&gt;} labels 
+ * @param {Array} data 
+ */</span>
+<span class="kd">function</span> <span class="nx">createChart</span><span class="p">(</span><span class="nx">labels</span><span class="p">,</span> <span class="nx">data</span><span class="p">)</span> <span class="p">{</span>
+    <span class="kd">let</span> <span class="nx">ctx</span> <span class="o">=</span> <span class="nb">document</span><span class="p">.</span><span class="nx">getElementById</span><span class="p">(</span><span class="dl">'</span><span class="s1">tempChart</span><span class="dl">'</span><span class="p">).</span><span class="nx">getContext</span><span class="p">(</span><span class="dl">'</span><span class="s1">2d</span><span class="dl">'</span><span class="p">);</span>
+    <span class="c1">// Set colors and fonts</span>
+    <span class="nx">Chart</span><span class="p">.</span><span class="nx">defaults</span><span class="p">.</span><span class="nb">global</span><span class="p">.</span><span class="nx">defaultFontColor</span> <span class="o">=</span> <span class="dl">'</span><span class="s1">#636160ff</span><span class="dl">'</span><span class="p">;</span>
+    <span class="nx">Chart</span><span class="p">.</span><span class="nx">defaults</span><span class="p">.</span><span class="nb">global</span><span class="p">.</span><span class="nx">defaultFontFamily</span> <span class="o">=</span> <span class="dl">'</span><span class="s1">"Open Sans", sans-serif</span><span class="dl">'</span><span class="p">;</span>
+    <span class="nx">Chart</span><span class="p">.</span><span class="nx">defaults</span><span class="p">.</span><span class="nb">global</span><span class="p">.</span><span class="nx">defaultFontSize</span> <span class="o">=</span> <span class="mi">20</span><span class="p">;</span>
+
+    <span class="c1">// Create chart </span>
+    <span class="kd">let</span> <span class="nx">chart</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">Chart</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span> <span class="p">{</span>
+        <span class="dl">"</span><span class="s2">type</span><span class="dl">"</span><span class="p">:</span> <span class="dl">"</span><span class="s2">line</span><span class="dl">"</span><span class="p">,</span>
+        <span class="dl">"</span><span class="s2">data</span><span class="dl">"</span><span class="p">:</span> <span class="p">{</span>
+            <span class="dl">"</span><span class="s2">labels</span><span class="dl">"</span><span class="p">:</span> <span class="nx">labels</span><span class="p">,</span>
+            <span class="dl">"</span><span class="s2">datasets</span><span class="dl">"</span><span class="p">:</span> <span class="p">[{</span>
+                <span class="dl">"</span><span class="s2">label</span><span class="dl">"</span><span class="p">:</span> <span class="dl">""</span><span class="p">,</span>
+                <span class="dl">"</span><span class="s2">data</span><span class="dl">"</span><span class="p">:</span> <span class="nx">data</span><span class="p">,</span>
+                <span class="dl">"</span><span class="s2">fill</span><span class="dl">"</span><span class="p">:</span> <span class="kc">false</span><span class="p">,</span>
+                <span class="dl">"</span><span class="s2">borderColor</span><span class="dl">"</span><span class="p">:</span> <span class="dl">"</span><span class="s2">#6e2594ff</span><span class="dl">"</span><span class="p">,</span>
+                <span class="dl">"</span><span class="s2">lineTension</span><span class="dl">"</span><span class="p">:</span> <span class="mf">0.1</span>
+            <span class="p">}]</span>
+        <span class="p">},</span>
+        <span class="dl">"</span><span class="s2">options</span><span class="dl">"</span><span class="p">:</span> <span class="p">{</span>
+            <span class="dl">"</span><span class="s2">legend</span><span class="dl">"</span><span class="p">:</span> <span class="p">{</span>
+                <span class="dl">"</span><span class="s2">display</span><span class="dl">"</span><span class="p">:</span> <span class="kc">false</span>
+            <span class="p">},</span>
+            <span class="dl">"</span><span class="s2">aspectRatio</span><span class="dl">"</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+            <span class="dl">"</span><span class="s2">maintainAspectRatio</span><span class="dl">"</span><span class="p">:</span> <span class="kc">false</span><span class="p">,</span>
+            <span class="dl">"</span><span class="s2">scales</span><span class="dl">"</span><span class="p">:</span> <span class="p">{</span>
+                <span class="dl">"</span><span class="s2">yAxes</span><span class="dl">"</span><span class="p">:</span> <span class="p">[{</span>
+                    <span class="dl">"</span><span class="s2">offset</span><span class="dl">"</span><span class="p">:</span> <span class="kc">true</span><span class="p">,</span>
+                    <span class="dl">"</span><span class="s2">gridLines</span><span class="dl">"</span><span class="p">:</span> <span class="p">{</span>
+                        <span class="dl">"</span><span class="s2">display</span><span class="dl">"</span><span class="p">:</span> <span class="kc">false</span>
+                    <span class="p">},</span>
+                    <span class="dl">"</span><span class="s2">ticks</span><span class="dl">"</span><span class="p">:</span> <span class="p">{</span>
+                        <span class="dl">"</span><span class="s2">suggestedMin</span><span class="dl">"</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+                        <span class="dl">"</span><span class="s2">suggestedMax</span><span class="dl">"</span><span class="p">:</span> <span class="mi">35</span>
+                    <span class="p">}</span>
+                <span class="p">}],</span>
+                <span class="dl">"</span><span class="s2">xAxes</span><span class="dl">"</span><span class="p">:</span> <span class="p">[{</span>
+                    <span class="dl">"</span><span class="s2">offset</span><span class="dl">"</span><span class="p">:</span> <span class="kc">true</span><span class="p">,</span>
+                    <span class="dl">"</span><span class="s2">gridLines</span><span class="dl">"</span><span class="p">:</span> <span class="p">{</span>
+                        <span class="dl">"</span><span class="s2">display</span><span class="dl">"</span><span class="p">:</span> <span class="kc">false</span>
+                    <span class="p">}</span>
+                <span class="p">}]</span>
+            <span class="p">}</span>
+        <span class="p">}</span>
+    <span class="p">});</span>
+
+    <span class="k">return</span> <span class="nx">chart</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Now, let’s look at how we can prepare data to be rendered by chart.js uring <code class="highlighter-rouge">createChartDataset</code> function:</p>
+
+<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cm">/**
+ * Transforms API response into an object that can be used in the {@link updateChart} call. 
+ * @param {Object} data 
+ * @param {string} selector 
+ */</span>
+<span class="kd">function</span> <span class="nx">createChartDataset</span><span class="p">(</span><span class="nx">data</span><span class="p">,</span> <span class="nx">selector</span><span class="p">)</span> <span class="p">{</span>
+    <span class="kd">let</span> <span class="nx">series</span> <span class="o">=</span> <span class="nx">data</span><span class="p">.</span><span class="nx">messages</span><span class="p">.</span><span class="nx">map</span><span class="p">(</span><span class="nx">item</span> <span class="o">=&gt;</span> <span class="nx">item</span><span class="p">[</span><span class="nx">selector</span><span class="p">]);</span>
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="dl">'</span><span class="s1">dates</span><span class="dl">'</span><span class="p">:</span> <span class="nx">data</span><span class="p">.</span><span class="nx">messages</span><span class="p">.</span><span class="nx">map</span><span class="p">(</span><span class="nx">item</span> <span class="o">=&gt;</span> <span class="nx">item</span><span class="p">.</span><span class="nx">timestamp</span><span class="p">),</span>
+        <span class="dl">'</span><span class="s1">data</span><span class="dl">'</span><span class="p">:</span> <span class="nx">series</span><span class="p">,</span>
+        <span class="dl">'</span><span class="s1">min</span><span class="dl">'</span><span class="p">:</span> <span class="nb">Math</span><span class="p">.</span><span class="nx">min</span><span class="p">.</span><span class="nx">apply</span><span class="p">(</span><span class="nx">series</span><span class="p">),</span>
+        <span class="dl">'</span><span class="s1">max</span><span class="dl">'</span><span class="p">:</span> <span class="nb">Math</span><span class="p">.</span><span class="nx">max</span><span class="p">.</span><span class="nx">apply</span><span class="p">(</span><span class="nx">series</span><span class="p">)</span>
+    <span class="p">};</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Finally, let’s look at how to update the existing chart’s data:</p>
+
+<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cm">/**
+ * Updates given chart using data and sets y axis min and max values 
+ * @param {ChartJS object} chart 
+ * @param {Object} data 
+ * @param {number} min 
+ * @param {number} max 
+ */</span>
+<span class="kd">function</span> <span class="nx">updateChart</span><span class="p">(</span><span class="nx">chart</span><span class="p">,</span> <span class="nx">data</span><span class="p">,</span> <span class="nx">min</span><span class="p">,</span> <span class="nx">max</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">chart</span><span class="p">.</span><span class="nx">data</span><span class="p">.</span><span class="nx">datasets</span><span class="p">[</span><span class="mi">0</span><span class="p">].</span><span class="nx">data</span> <span class="o">=</span> <span class="nx">data</span><span class="p">.</span><span class="nx">data</span><span class="p">;</span>
+    <span class="nx">chart</span><span class="p">.</span><span class="nx">data</span><span class="p">.</span><span class="nx">datasets</span><span class="p">[</span><span class="mi">0</span><span class="p">].</span><span class="nx">labels</span> <span class="o">=</span> <span class="nx">data</span><span class="p">.</span><span class="nx">dates</span><span class="p">.</span><span class="nx">map</span><span class="p">(</span><span class="nx">item</span> <span class="o">=&gt;</span> <span class="nx">moment</span><span class="p">(</span><span class="nx">item</span><span class="p">.</span><span class="nx">timestamp</span><span class="p">).</span><span class="nx">format</span><span class="p">(</span><span class="dl">'</span><span class="s1">ddd HH a</span><span class="dl">'</span><span class="p">));</span>
+    <span class="nx">chart</span><span class="p">.</span><span class="nx">options</span><span class="p">.</span><span class="nx">scales</span><span class="p">.</span><span class="nx">yAxes</span><span class="p">[</span><span class="mi">0</span><span class="p">].</span><span class="nx">ticks</span><span class="p">.</span><span class="nx">suggestedMin</span> <span class="o">=</span> <span class="nx">min</span><span class="p">;</span>
+    <span class="nx">chart</span><span class="p">.</span><span class="nx">options</span><span class="p">.</span><span class="nx">scales</span><span class="p">.</span><span class="nx">yAxes</span><span class="p">[</span><span class="mi">0</span><span class="p">].</span><span class="nx">ticks</span><span class="p">.</span><span class="nx">suggestedMax</span> <span class="o">=</span> <span class="nx">max</span><span class="p">;</span>
+    <span class="nx">chart</span><span class="p">.</span><span class="nx">update</span><span class="p">();</span>
+
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>That is everything that we neet to fetch and render our weather station measurements using an API. Now, let’s switch to the styling part and make things look a bit prettier.</p>
+
+<h2 id="styling">Styling</h2>
+
+<p>In this project, we will use <a href="https://sass-lang.com">SASS</a> extension language as a handy abstraction upon regular CSS. It allows to write stylesheets in a more clean and readable manner. I won’t do a detailed walkthrough of the stylesheet and encourage you to clone the repository, open the <code class="highlighter-rouge">index.html</code> file in the browser and play with the styles yourself. Page styling and design are better to be learned in practice: install <code class="highlighter-rouge">sass</code>, read documentation and experiment.</p>
+
+<h1 id="the-end">The end</h1>
+
+<p>By this post, we conclude the journey that led us from building ESP32 based weather station hardware, writing firmware, coding the backend service that tracks all measurements, building a Telegram notification bot and creating a simple web dashboard for browsing historical data. I hope that this post shed more light into the end-to-end process of making hardware &amp; software to solve a specific problem in mind. Now that you have covered every part of the process, the next step is to go on and create something new yourself! 😉</p>
+
+
+<div class="share-page">
+    <div class="wow bounce">
+    <p>
+    <b class="contrast">Share this post</b><br/>
+    </p>
+    </div>
+    <a href="https://twitter.com/intent/tweet?text=Building a Weather Station UI&url=/articles/rust/ui/weather-station-ui&via=kdubovikov&related=kdubovikov" rel="nofollow" target="_blank" title="Share on Twitter"><span class="icon-twitter"></span></a>
+    <a href="https://facebook.com/sharer.php?u=/articles/rust/ui/weather-station-ui" rel="nofollow" target="_blank" title="Share on Facebook"><span class="icon-facebook2"></span></a>
+    <a href="http://www.linkedin.com/shareArticle?mini=true&url=<URL>&title=Building a Weather Station UI&summary=Building a Weather Station UI&source=/articles/rust/ui/weather-station-ui" rel="nofollow" target="_blank" title="Share on LinkedIn+"><span class="icon-linkedin"></span></a>
+    <a href="http://www.reddit.com/submit?url=/articles/rust/ui/weather-station-ui&title=Building a Weather Station UI" rel="nofollow" target="_blank" title="Share on Reddit"><span class="icon-reddit"></span></a>
+</div>
+    </article>
+    <span class="print-footer">Building a Weather Station UI - November 4, 2020 - Kirill Dubovikov</span>
+    <footer>
+  <hr class="slender">
+  <ul class="footer-links">
+    
+      <li>
+        <a class="social-link" href="//www.twitter.com/kdubovikov">Twitter</a>
+      </li>
+    
+      <li>
+        <a class="social-link" href="//github.com/kdubovikov">GitHub</a>
+      </li>
+    
+      <li>
+        <a class="social-link" href="//linkedin.com/in/kirill-dubovikov-2a20b154/">LinkedIn</a>
+      </li>
+      
+    <li>
+      <a class="social-link" href="/feed.xml">RSS</a>
+    </li>
+  </ul>
+<div class="credits">
+<span>&copy; 2020 &nbsp;&nbsp;KIRILL DUBOVIKOV</span></br> <br>
+</div>  
+</footer>
+  </body>
+</html>

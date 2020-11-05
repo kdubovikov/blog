@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <title>Building yourself a weather station. Part 2</title>
-  <meta name="description" content="Writing code for ESP32In the previous post, we have covered the hardware setup for building a weather station. Starting from now, we will start coding. The f...">
+  <meta name="description" content="In the previous post, we have covered the hardware setup for building a weather station. Starting from now, we will start coding. The first missing piece is ...">
 
   <!-- Google Fonts loaded here depending on setting in _data/options.yml true loads font, blank does not-->
   
@@ -93,13 +93,21 @@
       <h1 class="contrast">Building yourself a weather station. Part 2</h1>
 <p class="subtitle">June 20, 2020</p>
 
-<h1 id="writing-code-for-esp32">Writing code for ESP32</h1>
-
 <p>In the <a href="https://blog.kdubovikov.ml/articles/hardware/build-yourself-a-weather-station">previous post</a>, we have covered the hardware setup for building a weather station. Starting from now, we will start coding. The first missing piece is the firmware for ESP32.</p>
 
 <!--more-->
 
-<p>Previous post in series: <a href="/articles/hardware/build-yourself-a-weather-station">Building a weather station</a></p>
+<h1 id="table-of-contents">Table of Contents</h1>
+
+<ol>
+  <li><a href="/articles/hardware/build-yourself-a-weather-station">Build yourself a weather station. Part I</a></li>
+  <li>→ Building yourself a weather station. Part 2</li>
+  <li><a href="/articles/rust/async-unicorns-love-rust">Async Unicorns love Rust</a></li>
+  <li><a href="/articles/rust/building-a-weather-station-bot">Building a Weather Station Bot</a></li>
+  <li><a href="/articles/rust/ui/weather-station-ui">Building a Weather Station UI</a></li>
+</ol>
+
+<h1 id="writing-code-for-esp32">Writing code for ESP32</h1>
 
 <p>This firmware should read the data from BME280 and publish it to the MQTT topic. For ESP32 we have two options: using the Arduino framework or ESP-IDF. While Arduino is extremely popular and easy to use, I have decided to go with ESP-IDF for the following reasons:</p>
 
@@ -127,16 +135,16 @@
 
 <p>Be sure to install drivers, as advised on this <a href="https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/establish-serial-connection.html">documentation page</a>. For Macbook pro you will need <a href="https://www.silabs.com/products/development-tools/software/usb-to-uart-bridge-vcp-drivers">CP210x drivers from Silicon Labs</a>.</p>
 
-<p>The reason you need drivers is that your computer does not understand the language ESP32 speaks. ESP32 transfers data to the external world using a serial protocol <label for="1" class="margin-toggle sidenote-number"></label><input type="checkbox" id="1" class="margin-toggle" /><span class="sidenote">Serial protocol  means that data is transferred one bit at a time. The I2C protocol that we were discussing in the previous post is a serial protocol. On the opposite side are parallel protocols, which  use multiple wires to transmit several bits at once </span> named <a href="https://en.wikipedia.org/wiki/RS-232">RS-232</a>. To bridge serial interface with the USB interface your devboard uses a special bridge chip that acts as a protocol converter. In the case of my board, it is the CP210x. The problem is that your computer does not know how to handle data from your devboard. It assumes that it receives data encoded by some of the standard data transfer protocols of the USB world. Thunderbolt, for example. And in reality, it receives data encoded by a bridge chip. To solve this linguistic inconvenience you install a special driver that decodes signals from the bridge chip and masquerades itself as a virtual COM <label for="2" class="margin-toggle sidenote-number"></label><input type="checkbox" id="2" class="margin-toggle" /><span class="sidenote">COM port is a computers serial inferface. Those ports were pretty common in desktop PCs but are long absent from modern laptops. Operating systems still have drivers for COM devices, so that’s a natural choice for emulating serial communication </span> device.</p>
+<p>The reason you need drivers is that your computer does not understand the language ESP32 speaks. ESP32 transfers data to the external world using a serial protocol <label for="1" class="margin-toggle sidenote-number"></label><input type="checkbox" id="1" class="margin-toggle" /><span class="sidenote">Serial protocol  means that data is transferred one bit at a time. The I2C protocol that we were discussing in the previous post is a serial protocol. On the opposite side are parallel protocols, which  use multiple wires to transmit several bits at once </span> named <a href="https://en.wikipedia.org/wiki/RS-232">RS-232</a>. To bridge the serial interface with the USB interface your devboard uses a special bridge chip that acts as a protocol converter. In the case of my board, it is the CP210x. The problem is that your computer does not know how to handle data from your devboard. It assumes that it receives data encoded by some of the standard data transfer protocols of the USB world. Thunderbolt, for example. And in reality, it receives data encoded by a bridge chip. To solve this linguistic inconvenience you install a special driver that decodes signals from the bridge chip and masquerades itself as a virtual COM <label for="2" class="margin-toggle sidenote-number"></label><input type="checkbox" id="2" class="margin-toggle" /><span class="sidenote">COM port is a computer’s serial interface. Those ports were pretty common in desktop PCs but are long absent from modern laptops. Operating systems still have drivers for COM devices, so that’s a natural choice for emulating serial communication </span> device.</p>
 
 <h1 id="what-will-the-firmware-do">What will the firmware do?</h1>
 
-<p>We will write a firmware that will follow <strong>the visious cycle of weather measurment</strong>:</p>
+<p>We will write a firmware that will follow <strong>the vicious cycle of weather measurement</strong>:</p>
 
 <ol>
   <li>Connect to a WiFi network</li>
   <li>Connect to MQTT server</li>
-  <li>Read data from BME280 sensor</li>
+  <li>Read data from a BME280 sensor</li>
   <li>Publish the newly read data to the MQTT topic</li>
   <li>Go in deep sleep and wake after several hours to repeat all steps starting from 1</li>
 </ol>
@@ -149,7 +157,7 @@
   <li><code class="highlighter-rouge">weather_station.c</code> — the primary module that implements <strong>the</strong> <strong>vicious cycle of weather measurement</strong></li>
   <li><code class="highlighter-rouge">wifi.c</code> — everything related to WiFi connectivity</li>
   <li><code class="highlighter-rouge">sensor.c</code>— the code for reading data from BME280 using I2C protocol</li>
-  <li><code class="highlighter-rouge">mqtt.c</code> — the code for connecting and publishing messages to MQTT server</li>
+  <li><code class="highlighter-rouge">mqtt.c</code> — the code for connecting and publishing messages to the MQTT server</li>
 </ul>
 
 <p>All modules are stored in the <a href="https://github.com/kdubovikov/weather-station-esp/tree/master/main">main</a> folder. We’ll also need to mention our modules in the <code class="highlighter-rouge">CMakeLists.txt</code> so that ESP-IDF’s build system would understand that we need all those source files to compile the project:</p>
@@ -164,7 +172,7 @@
 
 <p>To build this module, I have borrowed heavily from the <a href="https://github.com/espressif/esp-idf/tree/release/v4.0/examples/wifi/getting_started/station">WiFi example</a> provided by the framework. In fact, the project was based on this template. The original example connects to the WiFi asynchronously, but a blocking call that waits until we got an IP address from the access point will be useful to us since we want to wait for a WiFi connection before going on and connecting to the MQTT server.</p>
 
-<p>To create a blocking function we’ll use a handy <code class="highlighter-rouge">EventGroup</code> functionality from the FreeRTOS<label for="3" class="margin-toggle sidenote-number"></label><input type="checkbox" id="3" class="margin-toggle" /><span class="sidenote">Free Real Time Operating System contains lots of useful primitives for dealing with concurrency, multiprocessing and synchronization </span>. Events groups allow you to define an event which you can wait for in any other part of your code:</p>
+<p>To create a blocking function we’ll use a handy <code class="highlighter-rouge">EventGroup</code> functionality from the FreeRTOS<label for="3" class="margin-toggle sidenote-number"></label><input type="checkbox" id="3" class="margin-toggle" /><span class="sidenote">Free Real-Time Operating System contains lots of useful primitives for dealing with concurrency, multiprocessing and synchronization </span>. Events groups allow you to define an event which you can wait for in any other part of your code:</p>
 
 <div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// Define an event</span>
 <span class="n">EventGroupHandle_t</span><span class="o">*</span> <span class="n">connected_event_group</span> <span class="o">=</span> <span class="p">(</span><span class="n">EventGroupHandle_t</span><span class="o">*</span><span class="p">)</span> <span class="n">arg</span><span class="p">;</span>
@@ -179,7 +187,7 @@
 <span class="n">xEventGroupWaitBits</span><span class="p">(</span><span class="o">*</span><span class="n">connected_event_group</span><span class="p">,</span> <span class="n">WIFI_CONNECTED_BITS</span><span class="p">,</span> <span class="nb">true</span><span class="p">,</span> <span class="nb">true</span><span class="p">,</span> <span class="n">portMAX_DELAY</span><span class="p">);</span>
 </code></pre></div></div>
 
-<p><code class="highlighter-rouge">xEventGroupWaitBits</code> is what <code class="highlighter-rouge">wifi_connect_blocking</code> function uses to block and wait while the board will establish a wifi connection.</p>
+<p><code class="highlighter-rouge">xEventGroupWaitBits</code> is what the <code class="highlighter-rouge">wifi_connect_blocking</code> function uses to block and wait while the board will establish a wifi connection.</p>
 
 <p>All WiFi-related code is located at the <code class="highlighter-rouge">wifi.c</code> file. The best function to start with is <code class="highlighter-rouge">wifi_connect_blocking</code></p>
 
@@ -261,7 +269,7 @@
 <span class="p">}</span>
 </code></pre></div></div>
 
-<p>The main purpose of the handler is to wait for the board to get a successful connection and fire <code class="highlighter-rouge">WIFI_CONNECTED_BITS</code> event to the event group.</p>
+<p>The main purpose of the handler is to wait for the board to get a successful connection and fire the <code class="highlighter-rouge">WIFI_CONNECTED_BITS</code> event to the event group.</p>
 
 <p>The next important part is to make readings from our BME280 sensor, so let’s explore how to do that.</p>
 
@@ -458,7 +466,7 @@
 <span class="p">}</span>
 </code></pre></div></div>
 
-<p>It reads<code class="highlighter-rouge">WeatherMessage</code> structure from the queue and serializes it into a JSON message using <code class="highlighter-rouge">create_weather_msg</code>. Those are defined in a <code class="highlighter-rouge">weather_station.c</code> module, but let’s look at them right now so you will have a complete picture of how the code works. The structure definition is really simple:</p>
+<p>It reads the <code class="highlighter-rouge">WeatherMessage</code> structure from the queue and serializes it into a JSON message using <code class="highlighter-rouge">create_weather_msg</code>. Those are defined in a <code class="highlighter-rouge">weather_station.c</code> module, but let’s look at them right now so you will have a complete picture of how the code works. The structure definition is really simple:</p>
 
 <div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">struct</span> <span class="n">WeatherMessage</span>
 <span class="p">{</span>
@@ -540,13 +548,13 @@
 <span class="p">}</span>
 </code></pre></div></div>
 
-<p>Free Real Time Operating System contains lots of useful primitives for dealing with concurrency, multiprocessing and synchronization</p>
+<p>Free Real-Time Operating System contains lots of useful primitives for dealing with concurrency, multiprocessing and synchronization</p>
 
 <h1 id="setting-up-a-mosquitto-server">Setting up a Mosquitto server</h1>
 
 <p>The last remaining part is to set up an MQTT server, which will collect messages in a topic. Those messages could then be read by one or multiple subscribers. Of course, we could go the simples way and use the hosted solution, but we will set up our own server to see how everything works internally.</p>
 
-<p>You can set up one on your machine <label for="4" class="margin-toggle sidenote-number"></label><input type="checkbox" id="4" class="margin-toggle" /><span class="sidenote">Google Compute Cloud offers and <a href="https://cloud.google.com/free/">always-free f1-micro server</a> that will be more than enough for our purposes. You can register a free domain name for it at <a href="http://freenom.com/">http://freenom.com</a>. </span>, or use a virtual private server on some cloud provider like Google Compute Cloud, AWS, Azure, Linode or DigitalOcean.</p>
+<p>You can set up one on your machine <label for="4" class="margin-toggle sidenote-number"></label><input type="checkbox" id="4" class="margin-toggle" /><span class="sidenote">Google Compute Cloud offers and <a href="https://cloud.google.com/free/">always-free f1-micro server</a> that will be more than enough for our purposes. You can register a free domain name for it at <a href="http://freenom.com/">http://freenom.com</a>. </span>, or use a virtual private server on some cloud providers like Google Compute Cloud, AWS, Azure, Linode or DigitalOcean.</p>
 
 <p>We will use a popular and reliable <a href="http://mosquitto.org">Mosquitto</a> as an MQTT server. It is pretty simple to set up. At first, <a href="https://mosquitto.org/download/">download the software</a> or install it using a package manager. For Ubuntu, you can simply install it via:</p>
 
@@ -558,7 +566,7 @@
 <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>mosquitto_passwd <span class="nt">-c</span> /etc/mosquitto/passwd mqttuser <span class="o">[</span>password]
 </code></pre></div></div>
 
-<p>Next, we will need to configure the server. On Ubuntu, the configuration file could be found at <code class="highlighter-rouge">/etc/mosquitto/conf.d/default.conf</code>. Open it using your favourite editor and set up the password authentication:</p>
+<p>Next, we will need to configure the server. On Ubuntu, the configuration file could be found at <code class="highlighter-rouge">/etc/mosquitto/conf.d/default.conf</code>. Open it using your favorite editor and set up the password authentication:</p>
 
 <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># disable anonymous login
 allow_anonymous false

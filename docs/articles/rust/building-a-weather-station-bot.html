@@ -96,8 +96,18 @@
 <p>In this post we are going to switch from hardware to software and write a telegram bot that will be the primary user interface for our weather station.
 <!--more--></p>
 
+<h1 id="table-of-contents">Table of Contents</h1>
+
+<ol>
+  <li><a href="/articles/hardware/build-yourself-a-weather-station">Build yourself a weather station. Part I</a></li>
+  <li><a href="/articles/hardware/build-yourself-a-weathe-station-part-2">Building yourself a weather station. Part 2</a></li>
+  <li><a href="/articles/rust/async-unicorns-love-rust">Async Unicorns love Rust</a></li>
+  <li>→ Building a Weather Station Bot</li>
+  <li><a href="/articles/rust/ui/weather-station-ui">Building a Weather Station UI</a></li>
+</ol>
+
 <h1 id="writing-a-weather-station-bot">Writing a Weather Station Bot</h1>
-<p>In the <a href="https://blog.kdubovikov.ml/articles/rust/async-unicorns-love-rust">previous post</a> we have covered the basics of the asynchronous programming in Rust, which will allow us to write a telegram bot that reads measurements from MQTT server and send notification messages to Telegram. The complete source code for this post is hosted in a <a href="https://github.com/kdubovikov/weather-station-bot">GitHub repository which you can access by following this link</a>.</p>
+<p>In the <a href="https://blog.kdubovikov.ml/articles/rust/async-unicorns-love-rust">previous post</a> we have covered the basics of asynchronous programming in Rust, which will allow us to write a telegram bot that reads measurements from the MQTT server and send notification messages to Telegram. The complete source code for this post is hosted in a <a href="https://github.com/kdubovikov/weather-station-bot">GitHub repository which you can access by following this link</a>.</p>
 
 <p>This project will use a few libraries which will greatly simplify our work:</p>
 
@@ -114,11 +124,11 @@
 
 <p>We will also use a library called <a href="https://docs.rs/rumq-client/0.1.0-alpha.10/rumq_client/index.html">rumq-client</a> for communicating with our Mosquitto MQTT server.</p>
 
-<p>We will package our bot as a command-line application which supports file-based configuration. Packages like clap and settings will help us to quickly implement config files and parsing command line arguments.</p>
+<p>We will package our bot as a command-line application which supports file-based configuration. Packages like clap and settings will help us to quickly implement config files and parsing command-line arguments.</p>
 
 <h2 id="designing-a-database">Designing a database</h2>
 
-<p>First, let’s look at <code class="highlighter-rouge">[schema.rs](http://schema.rs)</code> file which contain’s our database table definitions. Based on this metadata diesel will be able to generate SQL migrations that create the tables in our DB, so we do not need to do this by hand. Those definitions also will be used by diesel to automatically create queries to the DB.</p>
+<p>First, let’s look at the <code class="highlighter-rouge">[schema.rs](http://schema.rs)</code> file which contains our database table definitions. Based on this metadata diesel will be able to generate SQL migrations that create the tables in our DB, so we do not need to do this by hand. Those definitions also will be used by diesel to automatically create queries to the DB.</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">table!</span> <span class="p">{</span>
     <span class="c">// subscribers table will store telegram identifiers of all users </span>
@@ -198,7 +208,7 @@
 <span class="p">}</span>
 </code></pre></div></div>
 
-<p>Please note, that we can use <code class="highlighter-rouge">table_name</code> attribute to deliberately tell diesel which table to use as a backing storage for a struct.</p>
+<p>Please note, that we can use the <code class="highlighter-rouge">table_name</code> attribute to deliberately tell diesel which table to use backing storage for a struct.</p>
 
 <p>Next, we need to define some basic functions to work with subscriptions:</p>
 
@@ -228,9 +238,9 @@
 
 <h3 id="weather-messages">Weather messages</h3>
 
-<p>Now, it is time to define structures related to weather messages. It is important to mention that the design process of this kind of API is in general done in backwards. Instead of writing the DB code as a first step, it is more natural to write the bot first, deciding on which functionality you will need from the DB layer in ad-hoc manner. However, it is a lot easier to explain how everything works starting from the data model, so we will go through that first.</p>
+<p>Now, it is time to define structures related to weather messages. It is important to mention that the design process of this kind of API is in general done backwards. Instead of writing the DB code as a first step, it is more natural to write the bot first, deciding on which functionality you will need from the DB layer in an ad-hoc manner. However, it is a lot easier to explain how everything works starting from the data model, so we will go through that first.</p>
 
-<p>We will separate MQTT message format from the internal one to keep our backend decoupled from edge-device message format:</p>
+<p>We will separate the MQTT message format from the internal one to keep our backend decoupled from the edge-device message format:</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">/// This structure represents weather data that we read from SQLlite</span>
 <span class="nd">#[derive(Queryable,</span> <span class="nd">Serialize,</span> <span class="nd">Deserialize,</span> <span class="nd">Debug)]</span>
@@ -360,7 +370,7 @@
 
 <h2 id="writing-a-bot">Writing a bot</h2>
 
-<p>Now, let’s go on to the most interesting part: writing a telegram bot. We will go through a fairly long listing of bot’s <code class="highlighter-rouge">main</code> function, so I’ll break it in pieces for better clarity. First, we will setup our command line arguments parsing using <code class="highlighter-rouge">clap</code> crate:</p>
+<p>Now, let’s go on to the most interesting part: writing a telegram bot. We will go through a fairly long listing of the bot’s <code class="highlighter-rouge">main</code> function, so I’ll break it in pieces for better clarity. First, we will setup our command-line arguments parsing using the <code class="highlighter-rouge">clap</code> crate:</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// Main WeatherStation Telegram bot fucntion</span>
 <span class="nd">#[tokio::main]</span>
@@ -426,7 +436,7 @@
     <span class="p">});</span>
 </code></pre></div></div>
 
-<p>Here it the MQTT related code that does all of the actual job:</p>
+<p>Here it the MQTT related code that does the actual job:</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">/// Connects to MQTT server using [Settings](settings::Settings) structure. The settings are meant to be read from config TOML file</span>
 <span class="c">/// Will automatically subsribe to the topic name in the config.</span>
