@@ -105,7 +105,8 @@ h1 { font-weight: 400;
      font-size: 2.5rem;
      line-height: 0.784; }
 
-h2 { font-style: italic;
+h2 { 
+    // font-style: italic;
      font-weight: 400;
      margin-top: 1.866666666666667rem;
      margin-top: 2.1rem;
@@ -163,7 +164,7 @@ h1 code, h2 code, h3 code { font-size: 0.80em; } //left in for no real reason
 /*-- Table styling section - For Tufte-Jekyll, booktabs style is default for Markdown tables  --*/
 
 table, table.booktabs { width: auto;  //making booktabs style tables the unstyled default in case someone uses Markdown styling
-                 margin: 0 auto;
+                 // margin: 0 auto;
                  border-spacing: 0px;
                  border-top: 2px solid $border-color;
                  border-bottom: 2px solid $border-color; }
