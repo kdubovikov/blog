@@ -6,6 +6,16 @@ matrix:
     encoding: utf-8
   pipeline:
   - pyspelling.filters.markdown:
+  - pyspelling.filters.context:
+      context_visible_first: true
+      # escapes: '\\[\\`~]'
+      delimiters:
+      # Ignore jekyll magic commands {% ... %}
+      - open: '{%'
+        close: '%}'
+      # Ignore text between inline back ticks
+      - open: '(?P<open>`+)'
+        close: '(?P=open)'
   - pyspelling.filters.html:
     comments: false
     attributes:
