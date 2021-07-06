@@ -33,6 +33,8 @@
   new WOW().init();
   </script>
 
+  <script src="https://kit.fontawesome.com/27c1873205.js" crossorigin="anonymous"></script>
+
   <!-- Global site tag (gtag.js) - Google Analytics -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=UA-166077200-1"></script>
   <script>
@@ -117,7 +119,7 @@
 
 <figure><figcaption></figcaption><img src="/assets/img/esp32-weather-station/post-3-rust-async/unicorn.jpg" /></figure>
 
-<p>We have partnered with one of the best online shops who has given us an address of the best deals page: <a href="http://unizon.com/best-deals"><code class="highlighter-rouge">http://unizon.com/best-deals</code></a>. So, we need to fetch the data from this page. The most straightforward way to do this would be to find some HTTP client library that implements low-level details of fetching the web page via HTTP protocol:</p>
+<p>We have partnered with one of the best online shops who has given us an address of the best deals page: <a href="http://unizon.com/best-deals"><code class="language-plaintext highlighter-rouge">http://unizon.com/best-deals</code></a>. So, we need to fetch the data from this page. The most straightforward way to do this would be to find some HTTP client library that implements low-level details of fetching the web page via HTTP protocol:</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// Initialize our HTTP client library. </span>
 <span class="c">// The one we use here does not really exist, </span>
@@ -134,7 +136,7 @@
 
 <figure><figcaption></figcaption><img src="/assets/img/esp32-weather-station/post-3-rust-async/Sync_HTTP_request.svg" /></figure>
 
-<p>Here, <code class="highlighter-rouge">client.get</code> is a blocking call. This means that our main application <code class="highlighter-rouge">Buy'a'Unicorn App</code> needs to wait while lower-level components fetch the request.</p>
+<p>Here, <code class="language-plaintext highlighter-rouge">client.get</code> is a blocking call. This means that our main application <code class="language-plaintext highlighter-rouge">Buy'a'Unicorn App</code> needs to wait while lower-level components fetch the request.</p>
 
 <p>This overhead may be acceptable, but imagine that we will start making thousands of requests. Then, most of the runtime our app will wait while numbers are running back and forth over the wires.</p>
 
@@ -271,7 +273,7 @@
 
 <p>But why do we need to switch threads in the first place? Why code in our main thread can’t continue executing while some other part of the application is waiting for an I/O? In fact, every major operating system provides an API to handle off the I/O work to the OS kernel and receive notifications when data is available for reading.</p>
 
-<p>This functionality can be leveraged to avoid blocking on the I/O code in a single thread: if your application encounters an I/O call it can continue executing other tasks while waiting for the data to become available <label for="1" class="margin-toggle sidenote-number"></label><input type="checkbox" id="1" class="margin-toggle" /><span class="sidenote">In Linux, this functionality is available via <code class="highlighter-rouge">epoll</code> API </span>. In reality, this turns out to be a fairly complex task that can be implemented with the event loop architecture pattern.</p>
+<p>This functionality can be leveraged to avoid blocking on the I/O code in a single thread: if your application encounters an I/O call it can continue executing other tasks while waiting for the data to become available <label for="1" class="margin-toggle sidenote-number"></label><input type="checkbox" id="1" class="margin-toggle" /><span class="sidenote">In Linux, this functionality is available via <code class="language-plaintext highlighter-rouge">epoll</code> API </span>. In reality, this turns out to be a fairly complex task that can be implemented with the event loop architecture pattern.</p>
 
 <figure><figcaption></figcaption><img src="/assets/img/esp32-weather-station/post-3-rust-async/Event_loop.svg" /></figure>
 
@@ -279,7 +281,7 @@
 
 <p>This model introduces a significant drawback compared to the traditional approach: the event loop runs in a single thread. This means that if our tasks contain anything but I/O operations their execution will block the entire event loop. That leads to a conclusion: if your application uses a lot of I/O requests, it will get a big performance boost from using the event loop approach. However, if it is CPU-heavy and uses lots of computational resources, it will block the event loop too much for it to provide any benefit. Modern asynchronous libraries provide a way to fight this by providing an additional thread pool which can be used to execute blocking tasks without stopping the event loop.</p>
 
-<p>Another important part of the solution is the asynchronous programming paradigm. Modern programming languages simplify working with asynchronous code by providing special syntax constructs. For example, Rust allows us to define <code class="highlighter-rouge">async</code> closures and functions.</p>
+<p>Another important part of the solution is the asynchronous programming paradigm. Modern programming languages simplify working with asynchronous code by providing special syntax constructs. For example, Rust allows us to define <code class="language-plaintext highlighter-rouge">async</code> closures and functions.</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// `block_on` blocks the current thread until the provided future has run to</span>
 <span class="c">// completion. Other executors provide more complex behavior, like scheduling</span>
@@ -298,9 +300,9 @@
 
 <p>The above example is from from the <a href="https://rust-lang.github.io/async-book/01_getting_started/04_async_await_primer.html">Asynchronous Programming In Rust</a>. I suggest reading the book for a more in-depth intro into async Rust.</p>
 
-<p>Each asynchronous function returns a <code class="highlighter-rouge">Future</code>, a special construct that designates a result, which will be returned sometime in the future. Notice that the <code class="highlighter-rouge">hello_world</code> function will not be executed until we <code class="highlighter-rouge">block_on</code> the future.</p>
+<p>Each asynchronous function returns a <code class="language-plaintext highlighter-rouge">Future</code>, a special construct that designates a result, which will be returned sometime in the future. Notice that the <code class="language-plaintext highlighter-rouge">hello_world</code> function will not be executed until we <code class="language-plaintext highlighter-rouge">block_on</code> the future.</p>
 
-<p>In practice, we will work with a <a href="https://docs.rs/tokio/">tokio</a> crate, which implements the event loop pattern and wraps the<code class="highlighter-rouge"> mio</code> library that uses the underlying operating system’s asynchronous I/O implementation and wraps it in a convenient interface. Another important library we will use in the ESP weather station project is <a href="https://tbot.rs">tbot</a>, a Telegram bot library built on top of <code class="highlighter-rouge">tokio</code>. Let’s look at how to build a simple bot with it:</p>
+<p>In practice, we will work with a <a href="https://docs.rs/tokio/">tokio</a> crate, which implements the event loop pattern and wraps the<code class="language-plaintext highlighter-rouge"> mio</code> library that uses the underlying operating system’s asynchronous I/O implementation and wraps it in a convenient interface. Another important library we will use in the ESP weather station project is <a href="https://tbot.rs">tbot</a>, a Telegram bot library built on top of <code class="language-plaintext highlighter-rouge">tokio</code>. Let’s look at how to build a simple bot with it:</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">use</span> <span class="nn">tbot</span><span class="p">::</span><span class="nn">prelude</span><span class="p">::</span><span class="o">*</span><span class="p">;</span>
 <span class="k">use</span> <span class="nn">tokio</span><span class="p">::</span><span class="nn">sync</span><span class="p">::</span><span class="n">Mutex</span><span class="p">;</span>
@@ -325,18 +327,18 @@
       <span class="n">context</span>
         <span class="nf">.send_message</span><span class="p">(</span><span class="o">&amp;</span><span class="n">message</span><span class="p">)</span>
         <span class="nf">.call</span><span class="p">()</span>
-        <span class="py">.await</span>
+        <span class="k">.await</span>
         <span class="nf">.unwrap</span><span class="p">();</span>
     <span class="p">}</span>
   <span class="p">});</span>
 	
 	<span class="c">// here, we start the Telegram API poller which will periodically ask the server about new events</span>
   <span class="c">// such as incoming messages</span>
-  <span class="n">bot</span><span class="nf">.polling</span><span class="p">()</span><span class="nf">.start</span><span class="p">()</span><span class="py">.await</span><span class="nf">.unwrap</span><span class="p">();</span>
+  <span class="n">bot</span><span class="nf">.polling</span><span class="p">()</span><span class="nf">.start</span><span class="p">()</span><span class="k">.await</span><span class="nf">.unwrap</span><span class="p">();</span>
 <span class="p">}</span>
 </code></pre></div></div>
 
-<p>Notice the <code class="highlighter-rouge">#[tokio::main]</code> macro. According to the documentation, it “marks async function to be executed by selected runtime”. By runtime we mean the underlying implementation of tokio’s scheduler that executes tasks. As defined in the framework’s documentation, the runtime consists of the following components:</p>
+<p>Notice the <code class="language-plaintext highlighter-rouge">#[tokio::main]</code> macro. According to the documentation, it “marks async function to be executed by selected runtime”. By runtime we mean the underlying implementation of tokio’s scheduler that executes tasks. As defined in the framework’s documentation, the runtime consists of the following components:</p>
 
 <ul>
   <li>An I/O event loop, called the driver, which drives I/O resources and dispatches I/O events to tasks that depend on them.</li>
@@ -353,7 +355,7 @@
 <ol>
   <li>Synchronous I/O, where everything happens in the same thread</li>
   <li>Threaded I/O, where we offload I/O work to a different thread by paying the cost of creating threads and switching between them</li>
-  <li>Asynchronous I/O, where we use the event loop pattern to offload the I/O work to the operating system and receive notifications via special APIs such as Linux <code class="highlighter-rouge">epoll</code> when our I/O requests are done</li>
+  <li>Asynchronous I/O, where we use the event loop pattern to offload the I/O work to the operating system and receive notifications via special APIs such as Linux <code class="language-plaintext highlighter-rouge">epoll</code> when our I/O requests are done</li>
 </ol>
 
 <p>While providing extremely fast I/O, the asynchronous paradigm is not without its drawbacks:</p>
@@ -400,7 +402,7 @@
     </li>
   </ul>
 <div class="credits">
-<span>&copy; 2020 &nbsp;&nbsp;KIRILL DUBOVIKOV</span></br> <br>
+<span>&copy; 2021 &nbsp;&nbsp;KIRILL DUBOVIKOV</span></br> <br>
 </div>  
 </footer>
   </body>

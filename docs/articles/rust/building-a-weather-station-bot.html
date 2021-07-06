@@ -33,6 +33,8 @@
   new WOW().init();
   </script>
 
+  <script src="https://kit.fontawesome.com/27c1873205.js" crossorigin="anonymous"></script>
+
   <!-- Global site tag (gtag.js) - Google Analytics -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=UA-166077200-1"></script>
   <script>
@@ -128,7 +130,7 @@
 
 <h2 id="designing-a-database">Designing a database</h2>
 
-<p>First, let’s look at the <code class="highlighter-rouge">[schema.rs](http://schema.rs)</code> file which contains our database table definitions. Based on this metadata diesel will be able to generate SQL migrations that create the tables in our DB, so we do not need to do this by hand. Those definitions also will be used by diesel to automatically create queries to the DB.</p>
+<p>First, let’s look at the <code class="language-plaintext highlighter-rouge">[schema.rs](http://schema.rs)</code> file which contains our database table definitions. Based on this metadata diesel will be able to generate SQL migrations that create the tables in our DB, so we do not need to do this by hand. Those definitions also will be used by diesel to automatically create queries to the DB.</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">table!</span> <span class="p">{</span>
     <span class="c">// subscribers table will store telegram identifiers of all users </span>
@@ -208,7 +210,7 @@
 <span class="p">}</span>
 </code></pre></div></div>
 
-<p>Please note, that we can use the <code class="highlighter-rouge">table_name</code> attribute to deliberately tell diesel which table to use backing storage for a struct.</p>
+<p>Please note, that we can use the <code class="language-plaintext highlighter-rouge">table_name</code> attribute to deliberately tell diesel which table to use backing storage for a struct.</p>
 
 <p>Next, we need to define some basic functions to work with subscriptions:</p>
 
@@ -272,7 +274,7 @@
 <span class="p">}</span>
 </code></pre></div></div>
 
-<p>We will also extend <code class="highlighter-rouge">EspWeatherMessage</code> with a few formatting methods. We will use <code class="highlighter-rouge">Display</code> trait to be able to convert the message into a human-readable format:</p>
+<p>We will also extend <code class="language-plaintext highlighter-rouge">EspWeatherMessage</code> with a few formatting methods. We will use <code class="language-plaintext highlighter-rouge">Display</code> trait to be able to convert the message into a human-readable format:</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span> <span class="n">EspWeatherMessage</span> <span class="p">{</span>
     <span class="k">pub</span> <span class="k">fn</span> <span class="nf">temp_to_emoji</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="o">&amp;</span><span class="nb">str</span> <span class="p">{</span>
@@ -303,7 +305,7 @@
     <span class="c">/// Converts pressure from Pascals to millimetres of mercury</span>
     <span class="k">pub</span> <span class="k">fn</span> <span class="nf">pressure_to_enoji</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="o">&amp;</span><span class="nb">str</span> <span class="p">{</span>
         <span class="k">const</span> <span class="n">PA_TO_MM_MERCURY</span><span class="p">:</span> <span class="nb">f32</span> <span class="o">=</span> <span class="mf">133.322</span><span class="p">;</span>
-        <span class="k">const</span> <span class="n">NORMAL_PRESSURE</span><span class="p">:</span> <span class="nb">f32</span> <span class="o">=</span> <span class="mi">101_325</span><span class="err">.</span><span class="mi">0</span> <span class="o">/</span> <span class="n">PA_TO_MM_MERCURY</span><span class="p">;</span>
+        <span class="k">const</span> <span class="n">NORMAL_PRESSURE</span><span class="p">:</span> <span class="nb">f32</span> <span class="o">=</span> <span class="mf">101_325.0</span> <span class="o">/</span> <span class="n">PA_TO_MM_MERCURY</span><span class="p">;</span>
 
         <span class="k">if</span> <span class="p">(</span><span class="k">self</span><span class="py">.pressure</span> <span class="o">/</span> <span class="n">PA_TO_MM_MERCURY</span><span class="p">)</span> <span class="o">&gt;</span> <span class="p">(</span><span class="n">NORMAL_PRESSURE</span> <span class="o">+</span> <span class="mf">10.0</span><span class="p">)</span> <span class="p">{</span>
             <span class="s">"⬆️ high pressure"</span>
@@ -370,7 +372,7 @@
 
 <h2 id="writing-a-bot">Writing a bot</h2>
 
-<p>Now, let’s go on to the most interesting part: writing a telegram bot. We will go through a fairly long listing of the bot’s <code class="highlighter-rouge">main</code> function, so I’ll break it in pieces for better clarity. First, we will setup our command-line arguments parsing using the <code class="highlighter-rouge">clap</code> crate:</p>
+<p>Now, let’s go on to the most interesting part: writing a telegram bot. We will go through a fairly long listing of the bot’s <code class="language-plaintext highlighter-rouge">main</code> function, so I’ll break it in pieces for better clarity. First, we will setup our command-line arguments parsing using the <code class="language-plaintext highlighter-rouge">clap</code> crate:</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// Main WeatherStation Telegram bot fucntion</span>
 <span class="nd">#[tokio::main]</span>
@@ -400,7 +402,7 @@
     <span class="k">let</span> <span class="n">settings</span> <span class="o">=</span> <span class="nn">Settings</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="n">config</span><span class="p">)</span><span class="nf">.expect</span><span class="p">(</span><span class="s">"Error while reading settings"</span><span class="p">);</span>
 </code></pre></div></div>
 
-<p><code class="highlighter-rouge">Settings</code> above is just a serializable structure that holds our bot settings inside. Next, we will focus on setting up the <code class="highlighter-rouge">tbot</code> framework, along with several <code class="highlighter-rouge">tokio</code> channels that we will use to communicate between our async functions:</p>
+<p><code class="language-plaintext highlighter-rouge">Settings</code> above is just a serializable structure that holds our bot settings inside. Next, we will focus on setting up the <code class="language-plaintext highlighter-rouge">tbot</code> framework, along with several <code class="language-plaintext highlighter-rouge">tokio</code> channels that we will use to communicate between our async functions:</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="c">// Structure that represents our Telegram bot.</span>
     <span class="c">// It is wrapped in an Arc (Atomic reference counter) because we will use it later in send_message_to_telegram function.</span>
@@ -420,7 +422,7 @@
     <span class="k">let</span> <span class="k">mut</span> <span class="n">conf</span> <span class="o">=</span> <span class="n">conf_rx</span><span class="nf">.clone</span><span class="p">();</span>
     
     <span class="c">// That's how we can recieve a config from watch::channel</span>
-    <span class="k">let</span> <span class="n">settings</span> <span class="o">=</span> <span class="n">conf</span><span class="nf">.recv</span><span class="p">()</span><span class="py">.await</span><span class="nf">.unwrap</span><span class="p">();</span>
+    <span class="k">let</span> <span class="n">settings</span> <span class="o">=</span> <span class="n">conf</span><span class="nf">.recv</span><span class="p">()</span><span class="k">.await</span><span class="nf">.unwrap</span><span class="p">();</span>
 </code></pre></div></div>
 
 <p>Then, let’s spawn a function that will read incoming messages from our MQTT queue:</p>
@@ -432,7 +434,7 @@
     <span class="c">// If you are familiar with closures and Rust borrow checker: </span>
     <span class="c">// async move tells that we can move values from enclosing environment inside the clousure's environment</span>
     <span class="nn">tokio</span><span class="p">::</span><span class="nf">spawn</span><span class="p">(</span><span class="k">async</span> <span class="k">move</span> <span class="p">{</span>
-        <span class="nf">process_mqtt_messages</span><span class="p">(</span><span class="o">&amp;</span><span class="n">settings</span><span class="p">,</span> <span class="n">tok_tx</span><span class="p">)</span><span class="py">.await</span><span class="p">;</span>
+        <span class="nf">process_mqtt_messages</span><span class="p">(</span><span class="o">&amp;</span><span class="n">settings</span><span class="p">,</span> <span class="n">tok_tx</span><span class="p">)</span><span class="k">.await</span><span class="p">;</span>
     <span class="p">});</span>
 </code></pre></div></div>
 
@@ -463,15 +465,15 @@
 
     <span class="c">// Here we subscribe to the MQTT topic from the config file</span>
     <span class="k">let</span> <span class="n">subscription</span> <span class="o">=</span> <span class="nn">Subscribe</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="n">settings</span><span class="py">.mqtt.topic_name</span><span class="nf">.clone</span><span class="p">(),</span> <span class="nn">QoS</span><span class="p">::</span><span class="n">AtLeastOnce</span><span class="p">);</span>
-    <span class="k">let</span> <span class="mi">_</span> <span class="o">=</span> <span class="n">requests_tx</span><span class="nf">.send</span><span class="p">(</span><span class="nn">Request</span><span class="p">::</span><span class="nf">Subscribe</span><span class="p">(</span><span class="n">subscription</span><span class="p">))</span><span class="py">.await</span><span class="p">;</span>
+    <span class="k">let</span> <span class="mi">_</span> <span class="o">=</span> <span class="n">requests_tx</span><span class="nf">.send</span><span class="p">(</span><span class="nn">Request</span><span class="p">::</span><span class="nf">Subscribe</span><span class="p">(</span><span class="n">subscription</span><span class="p">))</span><span class="k">.await</span><span class="p">;</span>
 
     <span class="c">// And create the Tokio event loop which drives the whole message processing</span>
     <span class="k">let</span> <span class="k">mut</span> <span class="n">event_loop</span> <span class="o">=</span> <span class="nf">eventloop</span><span class="p">(</span><span class="n">mqtt_options</span><span class="p">,</span> <span class="n">requests_rx</span><span class="p">);</span>
-    <span class="k">let</span> <span class="k">mut</span> <span class="n">stream</span> <span class="o">=</span> <span class="n">event_loop</span><span class="nf">.connect</span><span class="p">()</span><span class="py">.await</span><span class="nf">.unwrap</span><span class="p">();</span>
+    <span class="k">let</span> <span class="k">mut</span> <span class="n">stream</span> <span class="o">=</span> <span class="n">event_loop</span><span class="nf">.connect</span><span class="p">()</span><span class="k">.await</span><span class="nf">.unwrap</span><span class="p">();</span>
 
     <span class="c">// At last, we delegate each new message process_message_from_device function</span>
     <span class="nd">println!</span><span class="p">(</span><span class="s">"Waiting for notifications"</span><span class="p">);</span>
-    <span class="k">while</span> <span class="k">let</span> <span class="nf">Some</span><span class="p">(</span><span class="n">notification</span><span class="p">)</span> <span class="o">=</span> <span class="n">stream</span><span class="nf">.next</span><span class="p">()</span><span class="py">.await</span> <span class="p">{</span>
+    <span class="k">while</span> <span class="k">let</span> <span class="nf">Some</span><span class="p">(</span><span class="n">notification</span><span class="p">)</span> <span class="o">=</span> <span class="n">stream</span><span class="nf">.next</span><span class="p">()</span><span class="k">.await</span> <span class="p">{</span>
         <span class="nd">println!</span><span class="p">(</span><span class="s">"New notification — {:?}"</span><span class="p">,</span> <span class="n">notification</span><span class="p">);</span>
         <span class="nf">process_message_from_device</span><span class="p">(</span><span class="o">&amp;</span><span class="n">notification</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">tx</span><span class="p">);</span>
     <span class="p">}</span>
@@ -503,7 +505,7 @@
 <span class="p">}</span>
 </code></pre></div></div>
 
-<p>Now that we have handled the MQTT message processing part, let’s use the <code class="highlighter-rouge">tok_rx</code> channel to read messages and send them over to our subscribers:</p>
+<p>Now that we have handled the MQTT message processing part, let’s use the <code class="language-plaintext highlighter-rouge">tok_rx</code> channel to read messages and send them over to our subscribers:</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="c">// We clone some variables since we need to move them into closure, but we allso will need them later</span>
     <span class="c">// Alternatively, you can use Arc's or channels to curcumvent cloning, but I have decided to</span>
@@ -513,9 +515,9 @@
     <span class="k">let</span> <span class="k">mut</span> <span class="n">conf</span> <span class="o">=</span> <span class="n">conf_rx</span><span class="nf">.clone</span><span class="p">();</span>
     <span class="nn">tokio</span><span class="p">::</span><span class="nf">spawn</span><span class="p">(</span><span class="k">async</span> <span class="k">move</span> <span class="p">{</span>
         <span class="c">// Here all the magic happens 🌈</span>
-        <span class="k">let</span> <span class="n">settings</span><span class="p">:</span> <span class="n">Settings</span> <span class="o">=</span> <span class="n">conf</span><span class="nf">.recv</span><span class="p">()</span><span class="py">.await</span><span class="nf">.unwrap</span><span class="p">();</span>
+        <span class="k">let</span> <span class="n">settings</span><span class="p">:</span> <span class="n">Settings</span> <span class="o">=</span> <span class="n">conf</span><span class="nf">.recv</span><span class="p">()</span><span class="k">.await</span><span class="nf">.unwrap</span><span class="p">();</span>
         <span class="c">// Recieve new message from MQTT topic</span>
-        <span class="k">while</span> <span class="k">let</span> <span class="nf">Some</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span> <span class="o">=</span> <span class="n">tok_rx</span><span class="nf">.recv</span><span class="p">()</span><span class="py">.await</span> <span class="p">{</span>
+        <span class="k">while</span> <span class="k">let</span> <span class="nf">Some</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span> <span class="o">=</span> <span class="n">tok_rx</span><span class="nf">.recv</span><span class="p">()</span><span class="k">.await</span> <span class="p">{</span>
             <span class="c">// Get all subrcribers from database</span>
             <span class="k">let</span> <span class="n">subscribers</span> <span class="o">=</span> <span class="nf">get_all_subscribers</span><span class="p">(</span><span class="o">&amp;</span><span class="nf">establish_connection</span><span class="p">(</span><span class="o">&amp;</span><span class="n">settings</span><span class="py">.db_path</span><span class="p">));</span> 
             <span class="nd">println!</span><span class="p">(</span><span class="s">"Recieved new message — {:?}"</span><span class="p">,</span> <span class="n">msg</span><span class="p">);</span>
@@ -523,7 +525,7 @@
 
             <span class="c">// Send message to all active subscribers</span>
             <span class="k">for</span> <span class="n">subscriber</span> <span class="n">in</span> <span class="o">&amp;</span><span class="n">subscribers</span> <span class="p">{</span>
-                <span class="nf">send_message_to_telegram</span><span class="p">(</span><span class="o">*</span><span class="n">subscriber</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">msg</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">bot_sender</span><span class="p">)</span><span class="py">.await</span><span class="p">;</span>
+                <span class="nf">send_message_to_telegram</span><span class="p">(</span><span class="o">*</span><span class="n">subscriber</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">msg</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">bot_sender</span><span class="p">)</span><span class="k">.await</span><span class="p">;</span>
             <span class="p">}</span>
 
             <span class="c">// Save weather data to database. Here we use a spawn blocking function to execute blocking code</span>
@@ -541,7 +543,7 @@
     <span class="p">});</span>
 </code></pre></div></div>
 
-<p>Here is the <code class="highlighter-rouge">send_message_to_telegram</code> function that we used in the code above:</p>
+<p>Here is the <code class="language-plaintext highlighter-rouge">send_message_to_telegram</code> function that we used in the code above:</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">/// Sends a message to subscribers</span>
 <span class="k">async</span> <span class="k">fn</span> <span class="nf">send_message_to_telegram</span><span class="p">(</span><span class="n">chat_id</span><span class="p">:</span><span class="nb">i64</span><span class="p">,</span> <span class="n">msg</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">EspWeatherMessage</span><span class="p">,</span> <span class="n">bot</span><span class="p">:</span> <span class="o">&amp;</span><span class="nb">Arc</span><span class="o">&lt;</span><span class="nn">tbot</span><span class="p">::</span><span class="n">Bot</span><span class="o">&gt;</span><span class="p">)</span> <span class="p">{</span>
@@ -554,12 +556,12 @@
     <span class="c">// Here, we send the message to a subscriber's chat</span>
     <span class="n">bot</span><span class="nf">.send_message</span><span class="p">(</span><span class="nn">ChatId</span><span class="p">::</span><span class="nf">from</span><span class="p">(</span><span class="n">chat_id</span><span class="p">),</span> <span class="n">message</span><span class="p">)</span>
         <span class="nf">.call</span><span class="p">()</span>
-        <span class="py">.await</span> <span class="c">// send_message is asynchronous, to actually call it and wait for it's result we need to use await</span>
+        <span class="k">.await</span> <span class="c">// send_message is asynchronous, to actually call it and wait for it's result we need to use await</span>
         <span class="nf">.expect</span><span class="p">(</span><span class="s">"Error while sending message to the bot"</span><span class="p">);</span>
 <span class="p">}</span>
 </code></pre></div></div>
 
-<p>Now that we are done with sending messages via Telegram, we need allow our users to subscribe to our notifications. For this, we will implement <code class="highlighter-rouge">/subscribe</code> and <code class="highlighter-rouge">/unsubscribe</code> commands:</p>
+<p>Now that we are done with sending messages via Telegram, we need allow our users to subscribe to our notifications. For this, we will implement <code class="language-plaintext highlighter-rouge">/subscribe</code> and <code class="language-plaintext highlighter-rouge">/unsubscribe</code> commands:</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// Here we get the event loop to register some commands for the bot users</span>
 <span class="k">let</span> <span class="k">mut</span> <span class="n">event_loop</span> <span class="o">=</span> <span class="p">(</span><span class="o">*</span><span class="n">bot</span><span class="p">)</span><span class="nf">.clone</span><span class="p">()</span><span class="nf">.event_loop</span><span class="p">();</span>
@@ -571,13 +573,13 @@
         <span class="k">let</span> <span class="k">mut</span> <span class="n">conf</span> <span class="o">=</span> <span class="n">conf</span><span class="nf">.clone</span><span class="p">();</span>
 
         <span class="k">async</span> <span class="k">move</span> <span class="p">{</span>
-            <span class="k">let</span> <span class="n">settings</span><span class="p">:</span> <span class="n">Settings</span> <span class="o">=</span> <span class="n">conf</span><span class="nf">.recv</span><span class="p">()</span><span class="py">.await</span><span class="nf">.unwrap</span><span class="p">();</span>
+            <span class="k">let</span> <span class="n">settings</span><span class="p">:</span> <span class="n">Settings</span> <span class="o">=</span> <span class="n">conf</span><span class="nf">.recv</span><span class="p">()</span><span class="k">.await</span><span class="nf">.unwrap</span><span class="p">();</span>
             <span class="c">// Here we get the user's chat_id</span>
-            <span class="k">let</span> <span class="n">chat_id</span> <span class="o">=</span> <span class="n">context</span><span class="py">.chat.id</span><span class="err">.</span><span class="mi">0</span><span class="p">;</span>
+            <span class="k">let</span> <span class="n">chat_id</span> <span class="o">=</span> <span class="n">context</span><span class="py">.chat.id</span><span class="na">.0</span><span class="p">;</span>
             <span class="n">context</span>
                 <span class="nf">.send_message</span><span class="p">(</span><span class="o">&amp;</span><span class="nd">format!</span><span class="p">(</span><span class="s">"Your chat id is {}"</span><span class="p">,</span> <span class="n">chat_id</span><span class="p">))</span>
                 <span class="nf">.call</span><span class="p">()</span>
-                <span class="py">.await</span>
+                <span class="k">.await</span>
                 <span class="nf">.err</span><span class="p">();</span>
             
 
@@ -592,15 +594,15 @@
         <span class="c">// the unsubscribe command can be used to unsubscribe from all bot notifications</span>
         <span class="k">let</span> <span class="k">mut</span> <span class="n">conf</span> <span class="o">=</span> <span class="n">conf</span><span class="nf">.clone</span><span class="p">();</span>
         <span class="k">async</span> <span class="k">move</span> <span class="p">{</span>
-            <span class="k">let</span> <span class="n">settings</span><span class="p">:</span> <span class="n">Settings</span> <span class="o">=</span> <span class="n">conf</span><span class="nf">.recv</span><span class="p">()</span><span class="py">.await</span><span class="nf">.unwrap</span><span class="p">();</span>
-            <span class="k">let</span> <span class="n">chat_id</span> <span class="o">=</span> <span class="n">context</span><span class="py">.chat.id</span><span class="err">.</span><span class="mi">0</span><span class="p">;</span>
+            <span class="k">let</span> <span class="n">settings</span><span class="p">:</span> <span class="n">Settings</span> <span class="o">=</span> <span class="n">conf</span><span class="nf">.recv</span><span class="p">()</span><span class="k">.await</span><span class="nf">.unwrap</span><span class="p">();</span>
+            <span class="k">let</span> <span class="n">chat_id</span> <span class="o">=</span> <span class="n">context</span><span class="py">.chat.id</span><span class="na">.0</span><span class="p">;</span>
             <span class="k">let</span> <span class="n">connection</span> <span class="o">=</span> <span class="nf">establish_connection</span><span class="p">(</span><span class="o">&amp;</span><span class="n">settings</span><span class="py">.db_path</span><span class="p">);</span>
             <span class="k">let</span> <span class="n">result</span> <span class="o">=</span> <span class="nf">unsubscribe</span><span class="p">(</span><span class="n">chat_id</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">connection</span><span class="p">);</span>
 
             <span class="k">if</span> <span class="n">result</span><span class="nf">.is_ok</span><span class="p">()</span> <span class="p">{</span>
-                <span class="n">context</span><span class="nf">.send_message</span><span class="p">(</span><span class="s">"Sucessfully unsubscribed"</span><span class="p">)</span><span class="nf">.call</span><span class="p">()</span><span class="py">.await</span><span class="nf">.err</span><span class="p">();</span>
+                <span class="n">context</span><span class="nf">.send_message</span><span class="p">(</span><span class="s">"Sucessfully unsubscribed"</span><span class="p">)</span><span class="nf">.call</span><span class="p">()</span><span class="k">.await</span><span class="nf">.err</span><span class="p">();</span>
             <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
-                <span class="n">context</span><span class="nf">.send_message</span><span class="p">(</span><span class="s">"Can't unsubscribe. Are you subscribed?"</span><span class="p">)</span><span class="nf">.call</span><span class="p">()</span><span class="py">.await</span><span class="nf">.err</span><span class="p">();</span>
+                <span class="n">context</span><span class="nf">.send_message</span><span class="p">(</span><span class="s">"Can't unsubscribe. Are you subscribed?"</span><span class="p">)</span><span class="nf">.call</span><span class="p">()</span><span class="k">.await</span><span class="nf">.err</span><span class="p">();</span>
             <span class="p">}</span>
         <span class="p">}</span>
     <span class="p">});</span>
@@ -609,7 +611,7 @@
 <p>That’s it. We have implemented a basic notification bot. Now just need to start the event loop and the bot will process messages from our weather station and send them over to the subscribers:</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// this starts the main event loop</span>
-<span class="n">event_loop</span><span class="nf">.polling</span><span class="p">()</span><span class="nf">.start</span><span class="p">()</span><span class="py">.await</span><span class="nf">.unwrap</span><span class="p">();</span>
+<span class="n">event_loop</span><span class="nf">.polling</span><span class="p">()</span><span class="nf">.start</span><span class="p">()</span><span class="k">.await</span><span class="nf">.unwrap</span><span class="p">();</span>
 </code></pre></div></div>
 
 <p>You may now compile the project, fill in the config file and start the bot like this:</p>
@@ -656,7 +658,7 @@
     </li>
   </ul>
 <div class="credits">
-<span>&copy; 2020 &nbsp;&nbsp;KIRILL DUBOVIKOV</span></br> <br>
+<span>&copy; 2021 &nbsp;&nbsp;KIRILL DUBOVIKOV</span></br> <br>
 </div>  
 </footer>
   </body>

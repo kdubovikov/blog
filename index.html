@@ -25,7 +25,7 @@ order: 0
         <li class="listing">
           {% comment %} <hr class="slender"> {% endcomment %}
           <a href="{{ post.url | prepend: site.baseurl }}"><h2 class="contrast">{{ post.title }}</h2></a>
-          <span class="smaller"><i class="far fa-clock">{{reading_time}}</i></span><br/>
+          <span class="smaller"><i class="far fa-clock"></i> {{reading_time}}</span><br/>
           <div>{{ post.excerpt }}</div> 
         </li>
     {% endfor %}

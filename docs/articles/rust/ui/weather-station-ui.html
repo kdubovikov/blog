@@ -33,6 +33,8 @@
   new WOW().init();
   </script>
 
+  <script src="https://kit.fontawesome.com/27c1873205.js" crossorigin="anonymous"></script>
+
   <!-- Global site tag (gtag.js) - Google Analytics -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=UA-166077200-1"></script>
   <script>
@@ -111,7 +113,7 @@
 <p>In <a href="/articles/rust/building-a-weather-station-bot">the previous post</a> we have built a weather station bot that can notify us about new measurements made by our weather station. Today, we are going to build a simple REST API to fetch the data from our server and draw a chart on a simple dashboard.</p>
 
 <h1 id="rest-api">REST API</h1>
-<p>Our web interface will need historical data that will be displayed in the charts. Before building an actual UI we will create a REST API that will return all sensor readings that are stored in our database. The code for the API is located in the <a href="https://github.com/kdubovikov/weather-station-bot/blob/master/src/bin/weather_station_api.rs"><code class="highlighter-rouge">weather_station_api.rs</code></a> file. We will use the <a href="https://docs.rs/tower-web/0.3.7/tower_web/">tower_web</a> crate to create a service that will return all sensor measurements along with their timestamps. We already have the database related code covered in the previous post. The entire service code is very concise:</p>
+<p>Our web interface will need historical data that will be displayed in the charts. Before building an actual UI we will create a REST API that will return all sensor readings that are stored in our database. The code for the API is located in the <a href="https://github.com/kdubovikov/weather-station-bot/blob/master/src/bin/weather_station_api.rs"><code class="language-plaintext highlighter-rouge">weather_station_api.rs</code></a> file. We will use the <a href="https://docs.rs/tower-web/0.3.7/tower_web/">tower_web</a> crate to create a service that will return all sensor measurements along with their timestamps. We already have the database related code covered in the previous post. The entire service code is very concise:</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">/// This type will be part of the web service as a resource.</span>
 <span class="nd">#[derive(Clone,</span> <span class="nd">Debug)]</span>
@@ -138,7 +140,7 @@
 <span class="p">}</span>
 </code></pre></div></div>
 
-<p>After that all we need is to run the server somewhere inside our <code class="highlighter-rouge">main</code> function:</p>
+<p>After that all we need is to run the server somewhere inside our <code class="language-plaintext highlighter-rouge">main</code> function:</p>
 
 <div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">cors</span> <span class="o">=</span> <span class="nn">CorsBuilder</span><span class="p">::</span><span class="nf">new</span><span class="p">()</span>
         <span class="nf">.allow_origins</span><span class="p">(</span><span class="nn">AllowedOrigins</span><span class="p">::</span><span class="n">Any</span> <span class="p">{</span> <span class="n">allow_null</span><span class="p">:</span> <span class="k">true</span> <span class="p">}</span> <span class="p">)</span>
@@ -151,7 +153,7 @@
     <span class="nf">.unwrap</span><span class="p">();</span>
 </code></pre></div></div>
 
-<p>You can check that the API works as intended by running the server and issuing an HTTP GET request with <code class="highlighter-rouge">curl</code> or <a href="https://www.postman.com">Postman</a>.</p>
+<p>You can check that the API works as intended by running the server and issuing an HTTP GET request with <code class="language-plaintext highlighter-rouge">curl</code> or <a href="https://www.postman.com">Postman</a>.</p>
 
 <h1 id="creating-a-ui-dashboard">Creating a UI Dashboard</h1>
 <p>Now, let’s create a simple UI Dashboard. The purpose of our interface will be to display a historical plot of temperature, humidity and pressure readings from our weather station. We won’t use any complex javascript frameworks and stick to vanilla javascript. This is how the final result will look like:</p>
@@ -159,7 +161,7 @@
 <figure class="fullwidth"><img src="/assets/img/esp32-weather-station/post-1/weather-dashboard.gif" /><figcaption></figcaption></figure>
 
 <h2 id="markup">Markup</h2>
-<p>For a start, let’s look at <code class="highlighter-rouge">index.html</code>:</p>
+<p>For a start, let’s look at <code class="language-plaintext highlighter-rouge">index.html</code>:</p>
 
 <div class="language-html highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nt">&lt;html&gt;</span>
 <span class="nt">&lt;head&gt;</span>
@@ -214,7 +216,7 @@
 </code></pre></div></div>
 
 <h2 id="ui-logic">UI logic</h2>
-<p>Having finished with the markup we now can transition to making our dashboard to be useful by implementing some logic in the <code class="highlighter-rouge">index.js</code> script. As a headstart, let’s start from the top abstraction level and look what the code does in overall:</p>
+<p>Having finished with the markup we now can transition to making our dashboard to be useful by implementing some logic in the <code class="language-plaintext highlighter-rouge">index.js</code> script. As a headstart, let’s start from the top abstraction level and look what the code does in overall:</p>
 
 <div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">const</span> <span class="nx">API_URL</span> <span class="o">=</span> <span class="dl">"</span><span class="s2">http://localhost:8080</span><span class="dl">"</span><span class="p">;</span>
 
@@ -259,7 +261,7 @@
 <span class="p">};</span>
 </code></pre></div></div>
 
-<p>Now that we have seen the whole picture, let’s look at how the individual functions work. We will start with <code class="highlighter-rouge">createChart</code>, that uses our canvas to display a plot using chart.js library:</p>
+<p>Now that we have seen the whole picture, let’s look at how the individual functions work. We will start with <code class="language-plaintext highlighter-rouge">createChart</code>, that uses our canvas to display a plot using chart.js library:</p>
 
 <div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cm">/**
  * Creates a new chart
@@ -317,7 +319,7 @@
 <span class="p">}</span>
 </code></pre></div></div>
 
-<p>Now, let’s look at how we can prepare data to be rendered by chart.js uring <code class="highlighter-rouge">createChartDataset</code> function:</p>
+<p>Now, let’s look at how we can prepare data to be rendered by chart.js uring <code class="language-plaintext highlighter-rouge">createChartDataset</code> function:</p>
 
 <div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cm">/**
  * Transforms API response into an object that can be used in the {@link updateChart} call. 
@@ -358,7 +360,7 @@
 
 <h2 id="styling">Styling</h2>
 
-<p>In this project, we will use <a href="https://sass-lang.com">SASS</a> extension language as a handy abstraction upon regular CSS. It allows to write stylesheets in a more clean and readable manner. I won’t do a detailed walkthrough of the stylesheet and encourage you to clone the repository, open the <code class="highlighter-rouge">index.html</code> file in the browser and play with the styles yourself. Page styling and design are better to be learned in practice: install <code class="highlighter-rouge">sass</code>, read documentation and experiment.</p>
+<p>In this project, we will use <a href="https://sass-lang.com">SASS</a> extension language as a handy abstraction upon regular CSS. It allows to write stylesheets in a more clean and readable manner. I won’t do a detailed walkthrough of the stylesheet and encourage you to clone the repository, open the <code class="language-plaintext highlighter-rouge">index.html</code> file in the browser and play with the styles yourself. Page styling and design are better to be learned in practice: install <code class="language-plaintext highlighter-rouge">sass</code>, read documentation and experiment.</p>
 
 <h1 id="the-end">The end</h1>
 
@@ -399,7 +401,7 @@
     </li>
   </ul>
 <div class="credits">
-<span>&copy; 2020 &nbsp;&nbsp;KIRILL DUBOVIKOV</span></br> <br>
+<span>&copy; 2021 &nbsp;&nbsp;KIRILL DUBOVIKOV</span></br> <br>
 </div>  
 </footer>
   </body>
