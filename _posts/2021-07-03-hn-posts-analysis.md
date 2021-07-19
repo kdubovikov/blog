@@ -1,6 +1,6 @@
 ---
 layout: post
-title:  "Best time to post in HackerNews"
+title:  "Best time to post on HackerNews"
 date:   2021-07-03 00:00:00
 categories: datascience
 ---
