@@ -289,7 +289,9 @@ nav.group a.active:after { content: "\000a0\0003e"; }
 
 header > nav a { font-size: 1.2rem; font-family: "Gill Sans", "Gill Sans MT", "Lato", Calibri, sans-serif; letter-spacing: 0.15em; text-transform: uppercase; color: #a00000; padding-top: 1.5rem; text-decoration: none; float: left; margin-top: 0; margin-bottom: 0; padding-right: 2rem; vertical-align: baseline; }
 
-.head-social-links { float: right; display: inline-block; }
+.head-social-links { display: flex; }
+
+@media screen and (min-width: 380px) { .head-social-links { float: right; } }
 
 header > nav a img { height: 5rem; position: relative; max-width: 100%; top: -1.5rem; }
 

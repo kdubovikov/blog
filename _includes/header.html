@@ -2,7 +2,7 @@
 <header>
     <nav class="group">
 	<div class="head-social-links">
-	{% assign sorted_pages = site.pages | sort:"order" %}
+	{% assign sorted_pages = site.html_pages | sort:"order" %}
 	{% for node in sorted_pages %}
 		{% unless node.nav_exclude %}
 		    {% if page.url == node.url %}

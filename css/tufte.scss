@@ -387,8 +387,13 @@ header > nav  a{
 }
 
 .head-social-links {
-  float: right;
-  display: inline-block;
+  display: flex;
+}
+
+@media screen and (min-width: 380px) {
+  .head-social-links {
+    float: right;
+  }
 }
 
 header > nav a img{

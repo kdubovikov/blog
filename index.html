@@ -4,6 +4,7 @@ title: Kirill Dubovikov
 # Note that this index page uses a full-width layout!
 order: 0
 ---
+	<div id="canvas" style="width: 100vw; height: 100vh; z-index: -9999; position: absolute"></div>
   <ul class="content-listing">
     {% for post in site.posts %}      
         {% assign num_words = post.content | strip_html | number_of_words %}
