@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html>
+  <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>Blazing fast category encoding</title>
+  <meta name="description" content="Category encoding can make a difference between bad and good machine learning modes. In this post, we will learn about target encoding with the blazing_encod...">
+
+  <!-- Google Fonts loaded here depending on setting in _data/options.yml true loads font, blank does not-->
+  
+    <link href='//fonts.googleapis.com/css?family=Lato:400,400italic' rel='stylesheet' type='text/css'>
+  
+  
+  <!-- Load up MathJax script if needed ... specify in /_data/options.yml file-->
+  
+    <script type="text/javascript" src="//cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+  
+
+  <link rel="stylesheet" type="text/css" href="/css/tufte.css">
+  <!-- <link rel="stylesheet" type="text/css" href="/css/print.css" media="print"> -->
+
+  <link rel="canonical" href="/articles/datascience/blazing-encoders">
+
+  <link rel="alternate" type="application/rss+xml" title="Kirill Dubovikov" href="/feed.xml" />
+  <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" >
+  <link rel="stylesheet" href="/css/animate.css" />
+
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@8.4.0/dist/mermaid.min.js"></script>
+  <script src="/scripts/wow.min.js"></script>
+  <script>
+  new WOW().init();
+  </script>
+
+  <script src="https://kit.fontawesome.com/27c1873205.js" crossorigin="anonymous"></script>
+
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=UA-166077200-1"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'UA-166077200-1');
+  </script>
+
+  <script data-name="BMC-Widget" src="https://cdnjs.buymeacoffee.com/1.0.0/widget.prod.min.js" data-id="kdubovikov" data-description="Support me" data-message="Support this blog" data-color="#D7CDCC" data-position="right" data-x_margin="40" data-y_margin="18"></script>
+</head>
+
+  <body>
+    <!--- Header and nav template site-wide -->
+<header>
+    <nav class="group">
+	<div class="head-social-links">
+	
+	
+		
+		    
+		      <a href="/">Kirill Dubovikov</a>
+		    
+	    
+  	
+		
+		    
+		      <a href="/categories/">Categories</a>
+		    
+	    
+  	
+    
+        <a class="social-link" href="//www.twitter.com/kdubovikov"><span class="icon-twitter"/></a>
+    
+        <a class="social-link" href="//github.com/kdubovikov"><span class="icon-github"/></a>
+    
+        <a class="social-link" href="//linkedin.com/in/kirill-dubovikov-2a20b154/"><span class="icon-linkedin"/></a>
+      
+	</div>
+	</nav>
+</header>
+    <article class="group">
+      <h1 class="contrast">Blazing fast category encoding</h1>
+<p class="subtitle">July 24, 2021</p>
+
+<p>Category encoding can make a difference between bad and good machine learning modes. In this post, we will learn about target encoding with the <a href="https://github.com/kdubovikov/blazing-encoders/">blazing_encoders</a> library.</p>
+
+<!--more-->
+
+<h1 id="tables-tables-tables">Tables, tables, tables</h1>
+
+<p>Tables are amongst the most popular data format for machine learning. If you work in the industry, you will likely find that most businesses struggle with monetizing their tabular data instead of working with unstructured data formats like images, audio, and text.</p>
+
+<p>In the tabular world, classical machine learning approaches are king. Of course, you can use deep learning, but with a high probability, you will spend more time to get a worse model than you would with LightGBM or CatBoost, or even our 200-year-old friend linear regression.</p>
+
+<h1 id="variable-types">Variable types</h1>
+
+<p>When working with tables, you can meet two kinds of variables: continuous and categorical. Continuous variables can represent speed, height, weight, cost, and other numeric quantities. From a programmer’s perspective, you would use <code class="language-plaintext highlighter-rouge">int</code>, <code class="language-plaintext highlighter-rouge">float</code>, or <code class="language-plaintext highlighter-rouge">double</code> types to represent them.</p>
+
+<p>Categorical variables are like enumerations. They represent a discrete set of factors like sex, eye color, or currency. You can turn any continuous variable into categorical using binning. For example, we can turn age into age groups by assigning each group a fixed range. For example:</p>
+
+<ul>
+  <li>Group 1 is 0–7 years old</li>
+  <li>Group 2 is 7–12 years old</li>
+  <li>Group 3 is 12 and older</li>
+</ul>
+
+<p>Converting a categorical variable into a continuous one is more tricky, so we will look into this later.</p>
+
+<p>In real-world datasets, categorical variables are prevalent. The ease of creating them often leaves you with several categorical variables slicing each continuous quantity in every way imaginable. Also, regular business datasets are filled with categoricals. For instance, in warehousing, for each price and weight of an item, you get product category hierarchy, a set of dates, its location in a warehouse that can be naturally represented as a set of categorical variables.</p>
+
+<h1 id="category-encoding">Category encoding</h1>
+
+<p>Sadly, machine learning algorithms understand only numbers. They do not know anything about categoricals. Take ordinary linear regression:</p>
+
+\[f(x) = \mathbb{W}x + \mathbb{b}\]
+
+<p>where \(\mathbb{W}\) is a weight matrix, and \(\mathbb{b}\) is a bias vector. If we were to estimate an item price given its weight, this would transform into</p>
+
+\[\text{price} = \beta_0 x_{weight} + b_0\]
+
+<p>where \(\beta_0\) is a linear regression coefficient, and \(b_0\) is a bias value.</p>
+
+<p>But how can we introduce a categorical variable such as product category into this equation? To do this, we need to encode a categorical variable in a numeric format. The first idea that might come to mind is representing different categories as numbers: 1, 2, 3, and so on up to $N$. However, this is a wrong move since numbers introduce artificial ordering information and qualitative information about your categorical.</p>
+
+\[\text{price} = \beta_0 x_{weight} + \beta_1 x_{category} + b_0\]
+
+<p>Could you try to find a good coefficient for \(\beta_1\) when \(x_{category}\) is encoded as a set of numbers \({1 … N}\)?</p>
+
+<p>A better way is to perform a one-hot encoding: introduce \(N\) new binary variables for each category. When a product belongs to category \(n\), the variable \(x_n\) will be set to 1, and others will be left at 0.</p>
+
+<p>However, what if we have thousands of levels in our category. For example, our categorical variable represents a product ID of a large online store like Amazon. Then, one-hot encoding will blow up our feature matrix with thousands of new columns.</p>
+
+<h1 id="target-encoding">Target encoding</h1>
+
+<p>Fortunately, there are alternative ways to deal with this problem. <a href="https://contrib.scikit-learn.org/category_encoders/#">category_encoders</a> package contains lots of categorical variable encoding algorithms, and each of them has its tradeoffs.</p>
+
+<p>The one that is used more frequently in practice, and the simplest one, is called mean target encoding. The idea is to introduce information about our target variable into categorical levels. Consider that we have the following dataset:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Product ID</th>
+      <th># of items bought</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>195285</td>
+      <td>10</td>
+    </tr>
+    <tr>
+      <td>195285</td>
+      <td>10</td>
+    </tr>
+    <tr>
+      <td>158123</td>
+      <td>11</td>
+    </tr>
+    <tr>
+      <td>110581</td>
+      <td>20</td>
+    </tr>
+    <tr>
+      <td>110581</td>
+      <td>4</td>
+    </tr>
+    <tr>
+      <td>110581</td>
+      <td>15</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>To perform mean target encoding we will group this dataset by product ID and replace each product ID with the corresponding mean of items bought for this specific product:</p>
+
+<ul>
+  <li>ID 195285 = (10 + 10) / 2 = 10</li>
+  <li>ID 158123 = 11</li>
+  <li>ID 110581 = (20 + 4 + 15) / 3 = 13</li>
+</ul>
+
+<p>We can replace each product id using this mapping:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Product ID (encoded)</th>
+      <th># of items bought</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>10</td>
+      <td>10</td>
+    </tr>
+    <tr>
+      <td>10</td>
+      <td>10</td>
+    </tr>
+    <tr>
+      <td>11</td>
+      <td>11</td>
+    </tr>
+    <tr>
+      <td>13</td>
+      <td>20</td>
+    </tr>
+    <tr>
+      <td>13</td>
+      <td>4</td>
+    </tr>
+    <tr>
+      <td>13</td>
+      <td>15</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>Yet, there is one problem left. You may notice that we have only one observation for ID 158123. Thus, according to (the law of large numbers)[https://en.wikipedia.org/wiki/Law_of_large_numbers], some product IDs with lots of observations will have better mean estimates than those with fewer observations.</p>
+
+<p>We can calculate a global mean of all items bought independent of product ID to correct this. Then, the fewer observations we have, the more we should shift our estimate to the global mean. This way, product IDs will small sales will be represented by global statistics, and the more they become popular, the more target encoding will shift to their local mean.</p>
+
+<p>We can achieve this by smoothing our local mean with the global mean. The amount of smoothing will be dependent on how many observations do we have in a group. Let \(\mu_{local}\) and \(mu_{global}\) be local and global means accordingly, \(n_{id}\) is the number of samples for product \(id\), \(s\) is a smoothing factor between 0 and 1.</p>
+
+<p>To calculate the encoding \(te_{id}\), we will use the following formula:</p>
+
+\[te_{id} = \mu_{global} \times (1 - \text{smoothing}) + \mu_{local} \times \text{smoothing}\]
+
+<p>In that way, we interpolate between \(\mu_{global}\) and \(\mu_{local}\). But how should we calculate this interpolation coefficient? It clearly should be dependent on the number of observations for each product.</p>
+
+<p>Let’s calculate the amount of smoothing that will shift target encodincs of each category towards the global mean value over all rows. The less data each category has, the more it will tend towards global mean:</p>
+
+\[1 - \frac{1}{1 + exp(\frac{1 - n_{id}}{s})}\]
+
+<p>This approach gives our model relevant information about the target variable.</p>
+
+<h1 id="the-problem-of-speed">The problem of speed</h1>
+<p>When you work with large datasets in Python’s most popular data analysis tool – pandas, you will end up doing group by’s with some additional logic to implement target encoding. The problem is that if you have many categorical columns and they have large cardinality. <label for="1" class="margin-toggle sidenote-number"></label><input type="checkbox" id="1" class="margin-toggle" /><span class="sidenote">Cardinality is the term for the number of categories </span> For problems like this, pandas will scale poorly. It will consume lots of memory and make you wait while wasting CPU cycles.</p>
+
+<p>The implementation of various category encoding algorithms in <a href="https://contrib.scikit-learn.org/category_encoders/#">category_encoders</a> also uses pandas, so you will likely face scaling issues on large datasets.</p>
+
+<h1 id="-blazing-encoders-">🔥 Blazing Encoders 🔥</h1>
+<p><a href="https://github.com/kdubovikov/blazing-encoders/">blazing_encoders</a> is a Python library powered up by Rust implementation of the classic category encoding algorithm. The interface should be familiar for category_encoders users:</p>
+
+<pre><code class="language-Python">from blazing_encoders import TargetEncoder_f64
+import numpy as np
+
+if __name__ == '__main__':
+    np.random.seed(42)
+    data = np.random.randint(0, 10, (5, 5)).astype('float')
+    target = np.random.rand(5)
+
+    encoder = TargetEncoder_f64.fit(data, target, smoothing=1.0, min_samples_leaf=1)
+    encoded_data = encoder.transform(data)
+    print(encoded_data)
+</code></pre>
+
+<p>You can use two of the available classes: <code class="language-plaintext highlighter-rouge">TargetEncoder_f64</code>, and <code class="language-plaintext highlighter-rouge">TargetEncoder_f32</code> to control the balance between memory usage and numerical precision of your target encoding process.</p>
+
+<p>Underneath, the library will share as much memory as possible so that overhead should be minimal. Also, it will parallelize target encoding computation so that the overall process will complete much faster.</p>
+
+<h2 id="perfornamce">Perfornamce</h2>
+
+<p><a href="https://github.com/kdubovikov/blazing-encoders/blob/master/examples/benchmark_blazing_encoders.py">This simple benckmark</a> generates a random dataset with given number of rows, columns and unique categories in each column. Then, it measures the time it took to compute target encodings with <code class="language-plaintext highlighter-rouge">blazing_encoders</code> and <code class="language-plaintext highlighter-rouge">category_encoders</code>.</p>
+
+<p>Tests show, that data-parallel implementation of <code class="language-plaintext highlighter-rouge">blazing_encoders</code> is significantly faster than <code class="language-plaintext highlighter-rouge">category_encoders</code>.</p>
+
+<p>For a dataset with 100 000 rows and 100 randomly generated columns with 100 categories in each <code class="language-plaintext highlighter-rouge">blazing_encoders</code> finish working about 9 times faster on my Macbook Pro.</p>
+
+<p>If we will increase the number of categories and columns in the dataset to 1000 <code class="language-plaintext highlighter-rouge">blzaing_encoders</code> will finish data processing in abount 20 seconds. For <code class="language-plaintext highlighter-rouge">category_encoders</code> it took 23 minutes! As you can see, with large datasets and high-cardinality categorical columns using <code class="language-plaintext highlighter-rouge">blazing_encoders</code> will save lots of your time.</p>
+
+
+<div class="share-page">
+    <div class="wow bounce">
+    <p>
+    <b class="contrast">Share this post</b><br/>
+    </p>
+    </div>
+    <a href="https://twitter.com/intent/tweet?text=Blazing fast category encoding&url=/articles/datascience/blazing-encoders&via=kdubovikov&related=kdubovikov" rel="nofollow" target="_blank" title="Share on Twitter"><span class="icon-twitter"></span></a>
+    <a href="https://facebook.com/sharer.php?u=/articles/datascience/blazing-encoders" rel="nofollow" target="_blank" title="Share on Facebook"><span class="icon-facebook2"></span></a>
+    <a href="http://www.linkedin.com/shareArticle?mini=true&url=<URL>&title=Blazing fast category encoding&summary=Blazing fast category encoding&source=/articles/datascience/blazing-encoders" rel="nofollow" target="_blank" title="Share on LinkedIn+"><span class="icon-linkedin"></span></a>
+    <a href="http://www.reddit.com/submit?url=/articles/datascience/blazing-encoders&title=Blazing fast category encoding" rel="nofollow" target="_blank" title="Share on Reddit"><span class="icon-reddit"></span></a>
+</div>
+    </article>
+    <span class="print-footer">Blazing fast category encoding - July 24, 2021 - Kirill Dubovikov</span>
+    <footer>
+  <hr class="slender">
+  <ul class="footer-links">
+    
+      <li>
+        <a class="social-link" href="//www.twitter.com/kdubovikov">Twitter</a>
+      </li>
+    
+      <li>
+        <a class="social-link" href="//github.com/kdubovikov">GitHub</a>
+      </li>
+    
+      <li>
+        <a class="social-link" href="//linkedin.com/in/kirill-dubovikov-2a20b154/">LinkedIn</a>
+      </li>
+      
+    <li>
+      <a class="social-link" href="/feed.xml">RSS</a>
+    </li>
+  </ul>
+<div class="credits">
+<span>&copy; 2021 &nbsp;&nbsp;KIRILL DUBOVIKOV</span></br> <br>
+</div>  
+</footer>
+  </body>
+</html>
