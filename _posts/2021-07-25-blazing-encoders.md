@@ -1,7 +1,7 @@
 ---
 layout: post
 title:  "Blazing fast category encoding"
-date:   2021-07-25 00:00:00
+date:   2021-09-16 00:00:00
 categories: datascience
 ---
 
@@ -27,7 +27,7 @@ Categorical variables are like enumerations. They represent a discrete set of fa
 
 Converting a categorical variable into a continuous one is more tricky, so we will look into this later.
 
-In real-world datasets, categorical variables are prevalent. The ease of creating them often leaves you with several categorical variables slicing each continuous quantity in every way imaginable. Also, regular business datasets are filled with categoricals. For instance, in warehousing, you get product category hierarchy for each price and weight of an item, a set of dates, and its location in a warehouse that can be naturally represented as a set of categorical variables.
+In real-world datasets, categorical variables are prevalent. The ease of creating them often leaves you with several categorical variables slicing each continuous quantity in every way imaginable. Also, regular business datasets are filled with categoricals. For instance, in warehousing, for each price and weight of an item, you get product category hierarchy, a set of dates, its location in a warehouse that can be naturally represented as a set of categorical variables.
 
 # Category encoding
 
@@ -45,7 +45,7 @@ $$
 
 where $$\beta_0$$ is a linear regression coefficient, and $$b_0$$ is a bias value.
 
-But how can we introduce a categorical variable such as product category into this equation? To do this, we need to encode a categorical variable in a numeric format. The first idea that might come to mind is representing different categories as numbers: 1, 2, 3, and so on up to $N$. However, this is wrong since numbers introduce artificial ordering information and qualitative information about your categorical. 
+But how can we introduce a categorical variable such as product category into this equation? To do this, we need to encode a categorical variable in a numeric format. The first idea that might come to mind is representing different categories as numbers: 1, 2, 3, and so on up to $N$. However, this is a wrong move since numbers introduce artificial ordering information and qualitative information about your categorical. 
 
 $$
 \text{price} = \beta_0 x_{weight} + \beta_1 x_{category} + b_0
@@ -61,7 +61,7 @@ However, what if we have thousands of levels in our category. For example, our c
 
 Fortunately, there are alternative ways to deal with this problem. [category_encoders](https://contrib.scikit-learn.org/category_encoders/#) package contains lots of categorical variable encoding algorithms, and each of them has its tradeoffs. 
 
-The one used more frequently in practice, and the simplest one, is called mean target encoding. The idea is to introduce information about our target variable into categorical levels. Consider that we have the following dataset:
+The one that is used more frequently in practice, and the simplest one, is called mean target encoding. The idea is to introduce information about our target variable into categorical levels. Consider that we have the following dataset:
 
 | Product ID | # of items bought | 
 |------------|-------------------|
@@ -103,7 +103,7 @@ $$
 
 In that way, we interpolate between $$\mu_{global}$$ and $$\mu_{local}$$. But how should we calculate this interpolation coefficient? It clearly should be dependent on the number of observations for each product.  
 
-Let's calculate the amount of smoothing that will shift target encodings of each category towards the global mean value over all rows. The less data each category has, the more it will tend towards the global mean:
+Let's calculate the amount of smoothing that will shift target encodincs of each category towards the global mean value over all rows. The less data each category has, the more it will tend towards global mean:
 
 $$
 1 - \frac{1}{1 + exp(\frac{1 - n_{id}}{s})}
@@ -141,10 +141,10 @@ Underneath, the library will share as much memory as possible so that overhead s
 
 ## Perfornamce
 
-[This simple benckmark](https://github.com/kdubovikov/blazing-encoders/blob/master/examples/benchmark_blazing_encoders.py) generates a random dataset with a given number of rows, columns, and unique categories in each column. Then, it measures the time it took to compute target encodings with `blazing_encoders` and `category_encoders`.
+[This simple benckmark](https://github.com/kdubovikov/blazing-encoders/blob/master/examples/benchmark_blazing_encoders.py) generates a random dataset with given number of rows, columns and unique categories in each column. Then, it measures the time it took to compute target encodings with `blazing_encoders` and `category_encoders`.
 
-Tests show that data-parallel implementation of `blazing_encoders` is significantly faster than `category_encoders`. 
+Tests show, that data-parallel implementation of `blazing_encoders` is significantly faster than `category_encoders`. 
 
-`blazing_encoders` finish working about 9 times faster on my Macbook Pro for a dataset with 100 000 rows and 100 randomly generated columns with 100 categories.
+For a dataset with 100 000 rows and 100 randomly generated columns with 100 categories in each `blazing_encoders` finish working about 9 times faster on my Macbook Pro.
 
-With the number of categories and columns in the dataset increased to 1000, `blzaing_encoders` will finish data processing in about 20 seconds. For `category_encoders` the same dataset took 23 minutes! As you can see, with large datasets and high-cardinality categorical columns, using `blazing_encoders` will save lots of your time. 
+If we will increase the number of categories and columns in the dataset to 1000 `blzaing_encoders` will finish data processing in abount 20 seconds. For `category_encoders` it took 23 minutes! As you can see, with large datasets and high-cardinality categorical columns using `blazing_encoders` will save lots of your time. 
