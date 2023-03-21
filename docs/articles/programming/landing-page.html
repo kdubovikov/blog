@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html>
+  <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>Coding a SaaS landing page</title>
+  <meta name="description" content="I’ve decided to create a side project to catch up with the latest tech trends, see what’s new in frontend, and experience the thrill of setting up a small Sa...">
+
+  <!-- Google Fonts loaded here depending on setting in _data/options.yml true loads font, blank does not-->
+  
+    <link href='//fonts.googleapis.com/css?family=Lato:400,400italic' rel='stylesheet' type='text/css'>
+  
+  
+  <!-- Load up MathJax script if needed ... specify in /_data/options.yml file-->
+  
+    <script type="text/javascript" src="//cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+  
+
+  <link rel="stylesheet" type="text/css" href="/css/tufte.css">
+  <!-- <link rel="stylesheet" type="text/css" href="/css/print.css" media="print"> -->
+
+  <link rel="canonical" href="/articles/programming/landing-page">
+
+  <link rel="alternate" type="application/rss+xml" title="Kirill Dubovikov" href="/feed.xml" />
+  <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" >
+  <link rel="stylesheet" href="/css/animate.css" />
+
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@8.4.0/dist/mermaid.min.js"></script>
+  <script src="/scripts/wow.min.js"></script>
+  <script>
+  new WOW().init();
+  </script>
+
+  <script src="https://kit.fontawesome.com/27c1873205.js" crossorigin="anonymous"></script>
+
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=UA-166077200-1"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'UA-166077200-1');
+  </script>
+
+  <script data-name="BMC-Widget" src="https://cdnjs.buymeacoffee.com/1.0.0/widget.prod.min.js" data-id="kdubovikov" data-description="Support me" data-message="Support this blog" data-color="#D7CDCC" data-position="right" data-x_margin="40" data-y_margin="18"></script>
+</head>
+
+  <body>
+    <!--- Header and nav template site-wide -->
+<header>
+    <nav class="group">
+	<div class="head-social-links">
+	
+	
+		
+		    
+		      <a href="/">Kirill Dubovikov</a>
+		    
+	    
+  	
+		
+		    
+		      <a href="/categories/">Categories</a>
+		    
+	    
+  	
+    
+        <a class="social-link" href="//www.twitter.com/kdubovikov"><span class="icon-twitter"/></a>
+    
+        <a class="social-link" href="//github.com/kdubovikov"><span class="icon-github"/></a>
+    
+        <a class="social-link" href="//linkedin.com/in/kirill-dubovikov-2a20b154/"><span class="icon-linkedin"/></a>
+      
+	</div>
+	</nav>
+</header>
+    <article class="group">
+      <h1 class="contrast">Coding a SaaS landing page</h1>
+<p class="subtitle">March 20, 2023</p>
+
+<p>I’ve decided to create a side project to catch up with the latest tech trends, see what’s new in frontend, and experience the thrill of setting up a small SaaS. My first step was to create a landing page, and in this post, I will share my research and results.</p>
+
+<!--more-->
+
+<p>Before starting to write the actual software, I did some planning and listed the main features of the system I plan to build using Domain-Driven Design (DDD). Then, I decided to create a small landing page to do some marketing and measure potential during the building process.</p>
+
+<p>While there are many well-known solutions to set up a landing page without coding, such as Wix, I was aware that I had been out of the frontend race for quite a while, and things change fast in frontend. So, creating a landing page could be a great way to practice and catch up with the latest trends.</p>
+
+<h1 id="researching-whats-new-in-frontend">Researching What’s New in Frontend</h1>
+
+<h2 id="language-choice">Language Choice</h2>
+<p>As someone who loves the process of learning new things, I’m always on the lookout for the latest and greatest tools in frontend development. Though it may not always be the most productive approach, I find that enjoying the development process is key when it comes to working on side projects. At first, I was captivated by <a href="https://elmprogramming.com/">Elm</a>, but I soon realized that it doesn’t have a large following and may have some issues with integrating with the rest of the frontend development world. Additionally, I thought that using a paid template to bootstrap the app development process would be a good investment, and those templates are usually only available for major, popular frameworks.</p>
+
+<p>So, I decided to go with something more industry-wide. This way, I can also refresh my skills, which may come in handy in my daily work. I have previously used all of the major Javascript UI frameworks, including React, Vue, and Angular, but it’s been a while since I’ve used the latter two. My most recent experience with React was about two years ago when I wrote a small geodata visualization app that allowed rendering interactive heatmaps on massive datasets for one of my data science projects. Overall, I enjoyed using React for writing small and medium-sized apps, so I decided to use it again.</p>
+
+<p>After working extensively with dynamically-typed languages, I’ve grown tired of the price you pay for code stability and maintainability in the long run. While dynamic typing is great, static type checkers have become so intelligent that they bring a lot of value with them. <label for="1" class="margin-toggle sidenote-number"></label><input type="checkbox" id="1" class="margin-toggle" /><span class="sidenote">Static type checking still makes your code more verbose. In a sense, it increases your development time along with improving software stability, maintainability, and making refactoring easy. As always, it’s all about tradeoffs. Dynamic typing is great as well, but there are no silver bullets. </span> So, I opted for TypeScript.
+{EDIT - Changes made for better readability, storytelling, grammar and SEO optimization.}</p>
+
+<h2 id="framework-choice">Framework choice</h2>
+
+<p>While React is only one part of the solution, I was looking for a more comprehensive framework to help me bootstrap routing, hosting, and optimization. At first, I thought about following the well-trodden path with <a href="https://create-react-app.dev/">create-react-app</a>, but then decided to look for a more advanced option. After a quick research, I discovered <a href="https://nextjs.org/">Next.js</a>, which is an opinionated framework that comes with a set of choices regarding how you structure your app and which routing you use, among other things. As with any framework, if you buy into the framework’s ideology, it can give you a productivity boost.</p>
+
+<p>After going through the starter course, I was impressed with Next.js’s file-path-based routing. Plus, Next.js makes it easy to quickly deploy your app using <a href="https://vercel.com/">Vercel</a>. It’s pretty open in terms of changing parts of the framework to your liking and comes with useful plugins like <a href="https://next-auth.js.org/">authentication</a>.</p>
+
+<p>Another great feature of Next.js is its capability to quickly create serverless APIs without leaving your frontend project by simply creating a file! These APIs get deployed automatically, making it a powerful pattern. Although I plan to use Go as my primary backend language, this feature will come in handy for quick prototyping or integration glue code.</p>
+
+<p>Next.js can be easily used to build a static website generator, SPA, or a multi-page app, meaning I could use the same framework for developing my landing page and a SaaS UI later on. Overall, their approach is all-encompassing and pretty flexible, so I’ve decided to give it a try.</p>
+
+<h2 id="css-frameworks">CSS frameworks</h2>
+
+<p>I came to know about <a href="https://tailwindcss.com/">tailwind CSS</a>, which is a very interesting take on CSS frameworks compared to <a href="https://getbootstrap.com/">Bootstrap</a> or <a href="https://bulma.io/">Bulma</a> that I am more familiar with. Traditional CSS frameworks provide you with a set of components and well-crafted pre-defined styles that you can use to build your app. You can customize them to some extent, but they come with their own styles that can be difficult to override.</p>
+
+<p>In contrast, Tailwind takes a different approach:</p>
+
+<ul>
+  <li>No pre-defined components. If you need them, you can use <a href="https://tailwindui.com/components">Tailwind UI</a> or other options that build on top of the core Tailwind library.</li>
+  <li>You don’t write separate <code class="language-plaintext highlighter-rouge">.css</code> files.</li>
+  <li>Instead, you apply lots of pre-created inline classes that Tailwind provides.</li>
+  <li>Follow a single source of truth approach where you can see both styling and markup from a single file.</li>
+</ul>
+
+<p>After playing with it for a bit, I’ve enjoyed this approach very much. It is pretty transparent which CSS you will get compared to traditional CSS frameworks. But it still packs a decent productivity boost. The documentation is also pleasant to use. Later on, I will need to build a custom text-editor component that won’t be covered by any existing component frameworks, so it will be a good investment to get familiar with this framework. Tailwind CSS is an instant win for me.</p>
+
+<h2 id="landing-page-template">Landing page template</h2>
+
+<p>As I’m not a designer, spending lots of time designing a custom landing page isn’t the best use of my time. Instead, finding a template that I can modify will do. Fortunately, there are many templates available for the NextJS and Tailwind combo. For my landing page, I wanted to find something free. Here are some of the options I’ve saved, both free and paid. Maybe this will help you reduce your search time:</p>
+
+<ul>
+  <li><a href="https://www.tailwindawesome.com/">Tailwind Awesome</a></li>
+  <li><a href="https://tailwindui.com/templates#browse">Tailwind UI Templates</a></li>
+  <li><a href="https://github.com/cruip/tailwind-landing-page-template">Tailwind Landing Page Template by Cruip</a></li>
+  <li><a href="https://preview.uideck.com/tailwind/shine/">Shine - Tailwind Landing Page Template</a></li>
+  <li><a href="https://treact.owaiskhan.me">Treact - Tailwind React UI Kit</a></li>
+</ul>
+
+<h2 id="waitlist">Waitlist</h2>
+
+<p>To add some value to the landing page, I decided to include a waitlist. While it’s possible to create one yourself, I felt that my time would be better spent on the actual software. After reviewing a few solutions, I settled on <a href="https://getwaitlist.com">GetWaitlist</a>. Integrating it into the landing page was simple, and the setup was fast.</p>
+
+<h1 id="the-final-result">The Final Result</h1>
+
+<p>You can see the final result here: <a href="https://hermesprompt.com/">https://hermesprompt.com/</a>. While it may not be the best landing page ever, that wasn’t the goal. Subjectively, it’s better than many landing pages for funded startups that I’ve seen. In my next post, I’ll focus on generating ideas and building the actual product. If you are interested, join the waitlist!</p>
+
+
+<div class="share-page">
+    <div class="wow bounce">
+    <p>
+    <b class="contrast">Share this post</b><br/>
+    </p>
+    </div>
+    <a href="https://twitter.com/intent/tweet?text=Coding a SaaS landing page&url=/articles/programming/landing-page&via=kdubovikov&related=kdubovikov" rel="nofollow" target="_blank" title="Share on Twitter"><span class="icon-twitter"></span></a>
+    <a href="https://facebook.com/sharer.php?u=/articles/programming/landing-page" rel="nofollow" target="_blank" title="Share on Facebook"><span class="icon-facebook2"></span></a>
+    <a href="http://www.linkedin.com/shareArticle?mini=true&url=<URL>&title=Coding a SaaS landing page&summary=Coding a SaaS landing page&source=/articles/programming/landing-page" rel="nofollow" target="_blank" title="Share on LinkedIn+"><span class="icon-linkedin"></span></a>
+    <a href="http://www.reddit.com/submit?url=/articles/programming/landing-page&title=Coding a SaaS landing page" rel="nofollow" target="_blank" title="Share on Reddit"><span class="icon-reddit"></span></a>
+</div>
+    </article>
+    <span class="print-footer">Coding a SaaS landing page - March 20, 2023 - Kirill Dubovikov</span>
+    <footer>
+  <hr class="slender">
+  <ul class="footer-links">
+    
+      <li>
+        <a class="social-link" href="//www.twitter.com/kdubovikov">Twitter</a>
+      </li>
+    
+      <li>
+        <a class="social-link" href="//github.com/kdubovikov">GitHub</a>
+      </li>
+    
+      <li>
+        <a class="social-link" href="//linkedin.com/in/kirill-dubovikov-2a20b154/">LinkedIn</a>
+      </li>
+      
+    <li>
+      <a class="social-link" href="/feed.xml">RSS</a>
+    </li>
+  </ul>
+<div class="credits">
+<span>&copy; 2023 &nbsp;&nbsp;KIRILL DUBOVIKOV</span></br> <br>
+</div>  
+</footer>
+  </body>
+</html>
