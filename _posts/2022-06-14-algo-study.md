@@ -20,7 +20,7 @@ Data sizes that we work with grow with each year. Data science and machine learn
 
 ## Be a better problem solver
 
-Honing CS will keep your general problem-solving skills sharp, too. And time after time I found out that applying rational thinking, logic and solid reasoning while discussing problems is extremely important. We do not only write code. WE also discuss and solve  many problems every day. And those problems can be tricky.
+  * [ ] Honing CS will keep your general problem-solving skills sharp, too. And time after time I found out that applying rational thinking, logic and solid reasoning while discussing problems is extremely important. We do not only write code. WE also discuss and solve  many problems every day. And those problems can be tricky.
 
 
 ## Interviews
